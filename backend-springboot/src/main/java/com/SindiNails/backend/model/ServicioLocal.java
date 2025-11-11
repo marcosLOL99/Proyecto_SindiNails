@@ -8,17 +8,17 @@ import lombok.Data;
 
 @Data
 @Entity
-public class Service {
+public class ServicioLocal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
+    private String nombre;
 
-    private String description;
+    private String descripcion;
 
-    private double price;
+    private double precio;
 
-    private int durationInMinutes;
+    private int duracionEnMinutos;
 }

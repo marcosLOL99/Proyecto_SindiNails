@@ -1,9 +1,9 @@
 package com.SindiNails.backend.repository;
 
-import com.SindiNails.backend.model.Service;
+import com.SindiNails.backend.model.ServicioLocal;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ServiceRepository extends JpaRepository<Service, Long> {
+public interface RepositorioServicios extends JpaRepository<ServicioLocal, Long> {
 }
