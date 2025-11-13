@@ -36,8 +36,8 @@ export default function Navbar() {
                 to={item.path}
                 className={`flex items-center gap-1 px-3 py-2 rounded-md text-sm font-medium ${
                   location.pathname === item.path
-                    ? "bg-black text-white"
-                    : "text-black hover:bg-gray-200"
+                    ? "bg-cyan-600 text-white"
+                    : "hover:text-white hover:bg-cyan-600"
                 }`}
               >
                 {item.icon}
