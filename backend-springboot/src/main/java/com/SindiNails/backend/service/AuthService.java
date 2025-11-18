@@ -23,13 +23,16 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponseDto register(RegistroDto request) {
-        if (repositorioUsuario.findByUsername(request.getUsername()).isPresent()) {
-            throw new IllegalArgumentException("El nombre de usuario ya está en uso.");
+        if (repositorioUsuario.findByEmail(request.getEmail()).isPresent()) {
+            throw new IllegalArgumentException("El email ya está en uso.");
         }
 
         var user = Usuario.builder()
-                .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .nombre(request.getNombre())
+                .apellidos(request.getApellidos())
+                .email(request.getEmail())
+                .telefono(request.getTelefono())
                 .role(Role.USER)
                 .build();
         repositorioUsuario.save(user);
@@ -40,11 +43,11 @@ public class AuthService {
     public AuthResponseDto login(LoginDto request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getEmail(),
                         request.getPassword()
                 )
         );
-        var user = repositorioUsuario.findByUsername(request.getUsername())
+        var user = repositorioUsuario.findByEmail(request.getEmail())
                 .orElseThrow();
         var jwtToken = jwtService.generateToken(user);
         return AuthResponseDto.builder().token(jwtToken).build();
