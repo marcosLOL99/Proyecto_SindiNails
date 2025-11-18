@@ -1,4 +1,4 @@
-package com.SindiNails.backend.security;
+package com.SindiNails.backend.service;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;

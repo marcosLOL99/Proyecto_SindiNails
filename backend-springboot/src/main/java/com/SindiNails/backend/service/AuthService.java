@@ -6,7 +6,7 @@ import com.SindiNails.backend.dto.RegistroDto;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
-import com.SindiNails.backend.security.JwtService;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,7 +23,6 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     public AuthResponseDto register(RegistroDto request) {
-        // Verificamos si el usuario ya existe
         if (repositorioUsuario.findByUsername(request.getUsername()).isPresent()) {
             throw new IllegalArgumentException("El nombre de usuario ya está en uso.");
         }
@@ -31,7 +30,7 @@ public class AuthService {
         var user = Usuario.builder()
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .role(Role.USER) // Por defecto, rol USER
+                .role(Role.USER)
                 .build();
         repositorioUsuario.save(user);
         var jwtToken = jwtService.generateToken(user);
@@ -46,7 +45,7 @@ public class AuthService {
                 )
         );
         var user = repositorioUsuario.findByUsername(request.getUsername())
-                .orElseThrow(); // El usuario debería existir si la autenticación fue exitosa
+                .orElseThrow();
         var jwtToken = jwtService.generateToken(user);
         return AuthResponseDto.builder().token(jwtToken).build();
     }
