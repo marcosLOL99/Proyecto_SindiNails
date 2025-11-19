@@ -5,6 +5,9 @@ import Home from '../pages/publico/Home.jsx';
 import Servicios from '../pages/publico/Servicios.jsx';
 import Contacto from '../pages/publico/Contacto.jsx';
 import Login from '../pages/publico/Login.jsx';
+import Registro from '../pages/publico/Registro.jsx';
+import ProtectedRoute from './ProtectedRoute.jsx';
+import Dashboard from '../pages/cliente/Dashboard.jsx';
 
 const router = createBrowserRouter([
   {
@@ -15,6 +18,14 @@ const router = createBrowserRouter([
       { path: 'servicios', element: <Servicios /> },
       { path: 'contacto', element: <Contacto /> },
       { path: 'login', element: <Login /> },
+      { path: 'registro', element: <Registro /> },
+      // Rutas Protegidas
+      {
+        element: <ProtectedRoute />,
+        children: [
+          { path: 'dashboard', element: <Dashboard /> },
+        ],
+      },
     ],
   },
 ]);
