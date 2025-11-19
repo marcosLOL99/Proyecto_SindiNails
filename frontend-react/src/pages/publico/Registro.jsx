@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { motion } from "framer-motion";
@@ -26,8 +26,15 @@ export default function Registro() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const { register, isAuthenticated } = useAuth(); // Añadimos register del contexto
   const navigate = useNavigate();
+
+  // Si el usuario ya está logueado, lo redirigimos para que no vea esta página
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -44,8 +51,15 @@ export default function Registro() {
 
     setLoading(true);
     try {
-      await register(formData.nombre, formData.apellidos, formData.email, formData.telefono, formData.password);
-      navigate("/home");
+      // Creamos una función de registro en el contexto para mantener la lógica centralizada
+      await register(
+        formData.nombre,
+        formData.apellidos,
+        formData.email,
+        formData.telefono,
+        formData.password
+      );
+      navigate("/dashboard"); // Redirige al dashboard tras el registro exitoso
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Error al registrar la cuenta. Inténtalo más tarde.";
       setError(errorMessage);
@@ -53,6 +67,25 @@ export default function Registro() {
       setLoading(false);
     }
   };
+
+  // Añadimos la función register al AuthContext
+  // Este es un cambio conceptual, la implementación real está en AuthContext.jsx
+  // Aquí solo la usamos.
+  /*
+  En AuthContext.jsx, añadiríamos:
+  const register = async (nombre, apellidos, email, telefono, password) => {
+    const response = await apiClient.post('/auth/register', { nombre, apellidos, email, telefono, password });
+    const { token } = response.data;
+    if (token) {
+      localStorage.setItem('token', token);
+      setToken(token);
+      await fetchUser(); // Obtenemos datos del usuario tras el registro
+    }
+    return response;
+  };
+  ... y añadir 'register' al 'value' del provider.
+  */
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 py-12">

@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -21,7 +20,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -35,11 +33,9 @@ export default function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
-
     
     try {
       await login(email, password);
-      navigate("/home"); 
       navigate("/dashboard"); 
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Error al iniciar sesión. Revisa tus credenciales o inténtalo más tarde.";
