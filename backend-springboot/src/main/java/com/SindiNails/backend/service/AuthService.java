@@ -2,6 +2,7 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.AuthResponseDto;
 import com.SindiNails.backend.dto.LoginDto;
+import com.SindiNails.backend.dto.EditarUsuarioDto;
 import com.SindiNails.backend.dto.RegistroDto;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
@@ -51,5 +52,13 @@ public class AuthService {
                 .orElseThrow();
         var jwtToken = jwtService.generateToken(user);
         return AuthResponseDto.builder().token(jwtToken).build();
+    }
+
+    public Usuario editarUsuario(Usuario usuario, EditarUsuarioDto data) {
+        usuario.setNombre(data.getNombre());
+        usuario.setApellidos(data.getApellidos());
+        usuario.setTelefono(data.getTelefono());
+
+        return repositorioUsuario.save(usuario);
     }
 }

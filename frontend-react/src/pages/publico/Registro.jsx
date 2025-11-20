@@ -68,24 +68,6 @@ export default function Registro() {
     }
   };
 
-  // Añadimos la función register al AuthContext
-  // Este es un cambio conceptual, la implementación real está en AuthContext.jsx
-  // Aquí solo la usamos.
-  /*
-  En AuthContext.jsx, añadiríamos:
-  const register = async (nombre, apellidos, email, telefono, password) => {
-    const response = await apiClient.post('/auth/register', { nombre, apellidos, email, telefono, password });
-    const { token } = response.data;
-    if (token) {
-      localStorage.setItem('token', token);
-      setToken(token);
-      await fetchUser(); // Obtenemos datos del usuario tras el registro
-    }
-    return response;
-  };
-  ... y añadir 'register' al 'value' del provider.
-  */
-
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 py-12">

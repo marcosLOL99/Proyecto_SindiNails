@@ -1,8 +1,118 @@
+import { useState } from "react";
+import { useAuth } from "../../context/AuthContext";
+import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { User, Mail, Phone, Calendar, History, PlusCircle, Edit, Loader2 } from "lucide-react";
+import EditProfileModal from "../../components/EditProfileModal";
+
 export default function Dashboard() {
+  const { user, loading } = useAuth();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold">¡Bienvenido a tu Panel!</h1>
-      <p>Esta es una ruta protegida.</p>
-    </div>
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="container mx-auto py-8 px-4"
+      >
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-800">
+            Bienvenida de nuevo, <span className="text-cyan-600">{user.nombre}</span>!
+          </h1>
+          <p className="text-lg text-gray-500 mt-2">Aquí tienes un resumen de tu actividad en SindiNails.</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Columna Izquierda - Perfil */}
+          <motion.div 
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="lg:col-span-1 space-y-8"
+          >
+            <Card className="shadow-lg hover:shadow-cyan-100 transition-shadow duration-300">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-xl"><User /> Mi Perfil</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <User className="text-gray-400" size={20} />
+                  <p className="text-gray-700">{user.nombre} {user.apellidos}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="text-gray-400" size={20} />
+                  <p className="text-gray-700">{user.email}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Phone className="text-gray-400" size={20} />
+                  <p className="text-gray-700">{user.telefono}</p>
+                </div>
+              </CardContent>
+              <CardFooter>
+                <Button 
+                  variant="outline" 
+                  className="w-full border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white"
+                  onClick={() => setIsModalOpen(true)}
+                >
+                  <Edit className="mr-2 h-4 w-4" /> Editar Perfil
+                </Button>
+              </CardFooter>
+            </Card>
+          </motion.div>
+
+          {/* Columna Derecha - Citas y Acciones */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="lg:col-span-2 space-y-8"
+          >
+            <Card className="bg-cyan-600 text-white shadow-xl">
+              <CardHeader>
+                <CardTitle className="text-2xl">¿Lista para tu próxima cita?</CardTitle>
+                <CardDescription className="text-cyan-100">Explora nuestros tratamientos y encuentra tu momento de relax.</CardDescription>
+              </CardHeader>
+              <CardFooter>
+                <Button asChild size="lg" variant="secondary" className="bg-white text-cyan-600 hover:bg-gray-100">
+                  <Link to="/servicios"><PlusCircle className="mr-2 h-5 w-5" /> Reservar Nueva Cita</Link>
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Calendar /> Próximas Citas</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center py-10 text-gray-500">
+                <p>Aún no tienes citas programadas.</p>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><History /> Historial de Citas</CardTitle>
+              </CardHeader>
+              <CardContent className="text-center py-10 text-gray-500">
+                <p>Aquí aparecerán tus citas completadas.</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      </motion.div>
+
+      <EditProfileModal isOpen={isModalOpen} onOpenChange={setIsModalOpen} />
+    </>
   );
 }

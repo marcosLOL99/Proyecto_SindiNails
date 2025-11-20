@@ -1,10 +1,9 @@
 import axios from 'axios';
 
-const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api', // La URL base de tu API
+export const apiClient = axios.create({
+  baseURL: 'http://localhost:8080/api',
 });
 
-// Interceptor para añadir el token JWT a cada petición
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
@@ -18,4 +17,19 @@ apiClient.interceptors.request.use(
   }
 );
 
-export default apiClient;
+export const setupInterceptors = (logout) => {
+  apiClient.interceptors.response.use(
+    (response) => {
+      return response;
+    },
+    (error) => {
+      if (error.response && error.response.status === 401 && error.config.url !== '/auth/login') {
+        console.log("Sesión expirada o token inválido. Cerrando sesión.");
+        logout();
+        window.location.href = '/login'; 
+      }
+
+      return Promise.reject(error);
+    }
+  );
+};

@@ -1,19 +1,30 @@
-import { createContext, useState, useContext, useEffect } from 'react';
-import apiClient from '../router/api.js';
+import { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import { apiClient, setupInterceptors } from '../router/api.js';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [loading, setLoading] = useState(true);
+
+  const fetchUser = useCallback(async () => {
+    if (localStorage.getItem('token')) {
+      try {
+        const response = await apiClient.get('/users/me');
+        setUser(response.data);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error("Error fetching user, logging out", error);
+      }
+    }
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    if (storedToken) {
-      setToken(storedToken);
-      setIsAuthenticated(true);
-    }
-  }, []);
+    fetchUser();
+  }, [fetchUser]);
 
   const login = async (email, password) => {
     const response = await apiClient.post('/auth/login', { email, password });
@@ -21,7 +32,7 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       localStorage.setItem('token', token);
       setToken(token);
-      setIsAuthenticated(true);
+      await fetchUser();
     }
     return response;
   };
@@ -29,11 +40,10 @@ export const AuthProvider = ({ children }) => {
   const register = async (nombre, apellidos, email, telefono, password) => {
     const response = await apiClient.post('/auth/register', { nombre, apellidos, email, telefono, password });
     const { token } = response.data;
-    // El backend actual devuelve un token al registrar, así que lo manejamos.
     if (token) {
       localStorage.setItem('token', token);
       setToken(token);
-      setIsAuthenticated(true);
+      await fetchUser();
     }
     return response;
   };
@@ -41,18 +51,35 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('token');
     setToken(null);
+    setUser(null);
     setIsAuthenticated(false);
   };
 
+  const updateUser = async (userData) => {
+    const response = await apiClient.put('/users/me', userData);
+    setUser(response.data);
+  };
+
+  useEffect(() => {
+    setupInterceptors(logout);
+  }, [logout]);
+
   const value = {
     token,
+    user,
     isAuthenticated,
+    loading,
     login,
     register,
     logout,
+    updateUser,
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => {
