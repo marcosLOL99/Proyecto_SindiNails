@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Euro, Clock } from 'lucide-react';
+import { Loader2, Euro, Clock, PlusCircle } from 'lucide-react';
 
 export default function Servicios() {
   const [servicios, setServicios] = useState([]);
@@ -12,6 +14,8 @@ export default function Servicios() {
   const [selectedType, setSelectedType] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -48,6 +52,15 @@ export default function Servicios() {
     }
   };
 
+  const handleBookingClick = (serviceId) => {
+    if (isAuthenticated) {
+      // Si está autenticado, lo llevamos a la página de reserva (que crearemos después)
+      navigate(`/reservar/${serviceId}`);
+    } else {
+      // Si no, lo mandamos a iniciar sesión
+      navigate('/login');
+    }
+  };
   const renderContent = () => {
     if (loading) {
       return (
@@ -74,7 +87,7 @@ export default function Servicios() {
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
-              <Card className="bg-white border-gray-200 flex flex-col shadow-lg hover:shadow-cyan-100 hover:border-cyan-300 transition-all duration-300 h-full">
+              <Card className="bg-white border-gray-200 flex flex-col shadow-lg hover:shadow-cyan-100 transition-all duration-300 h-full">
                 <CardHeader>
                   <CardTitle className="text-gray-900">{service.nombre}</CardTitle>
                   <CardDescription className="text-gray-600 pt-2 min-h-[60px]">{service.descripcion}</CardDescription>
@@ -84,15 +97,20 @@ export default function Servicios() {
                     <span className="text-gray-400 text-sm">Imagen del Servicio</span>
                   </div>
                 </CardContent>
-                <CardFooter className="flex justify-between items-center text-gray-800">
-                  <div className="flex items-center gap-2 text-cyan-600 font-bold text-lg">
-                    <Euro size={20} />
-                    <span>{service.precio}</span>
+                <CardFooter className="flex-col items-start gap-4">
+                  <div className="w-full flex justify-between items-center text-gray-800">
+                    <div className="flex items-center gap-2 text-cyan-600 font-bold text-lg">
+                      <Euro size={20} />
+                      <span>{service.precio}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-gray-500 text-sm">
+                      <Clock size={16} />
+                      <span>{service.duracionEnMinutos} min</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-500 text-sm">
-                    <Clock size={16} />
-                    <span>{service.duracionEnMinutos} min</span>
-                  </div>
+                  <Button onClick={() => handleBookingClick(service.id)} className="w-full bg-cyan-600 hover:bg-cyan-700">
+                    <PlusCircle className="mr-2 h-4 w-4" /> Reservar ahora
+                  </Button>
                 </CardFooter>
               </Card>
             </motion.div>

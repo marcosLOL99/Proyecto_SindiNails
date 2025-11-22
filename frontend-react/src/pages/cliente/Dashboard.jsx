@@ -1,15 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { apiClient } from "../../router/api.js";
+import { format, parseISO } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+// Componentes UI y Iconos
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Calendar, History, PlusCircle, Edit, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Calendar, History, PlusCircle, Edit, Loader2, Briefcase, AlertCircle } from "lucide-react";
 import EditProfileModal from "../../components/EditProfileModal";
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const [citas, setCitas] = useState([]);
+  const [loadingCitas, setLoadingCitas] = useState(true);
+  const [errorCitas, setErrorCitas] = useState(null);
 
   if (!user) {
     return (
@@ -18,6 +27,46 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  useEffect(() => {
+    const fetchCitas = async () => {
+      try {
+        setLoadingCitas(true);
+        const response = await apiClient.get('/citas/mis-citas');
+        setCitas(response.data);
+        setErrorCitas(null);
+      } catch (error) {
+        console.error("Error al obtener las citas:", error);
+        setErrorCitas("No se pudieron cargar tus citas. Inténtalo de nuevo más tarde.");
+      } finally {
+        setLoadingCitas(false);
+      }
+    };
+
+    fetchCitas();
+  }, []);
+
+  const ahora = new Date();
+  const proximasCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) > ahora);
+  const historialCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) <= ahora);
+
+  // Componente para renderizar una tarjeta de cita individual
+  const CitaCard = ({ cita }) => (
+    <div className="border-l-4 border-cyan-500 pl-4 py-3 bg-gray-50 rounded-r-lg mb-4">
+      <p className="font-bold text-gray-800">{cita.servicio.nombre}</p>
+      <div className="text-sm text-gray-600 mt-1 space-y-1">
+        <p className="flex items-center gap-2">
+          <Calendar size={14} /> 
+          {format(parseISO(cita.fechaHoraInicio), "EEEE, d 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}h
+        </p>
+        <p className="flex items-center gap-2">
+          <Briefcase size={14} />
+          Con {cita.trabajador.nombre}
+        </p>
+      </div>
+    </div>
+  );
+
 
   return (
     <>
@@ -95,8 +144,16 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><Calendar /> Próximas Citas</CardTitle>
               </CardHeader>
-              <CardContent className="text-center py-10 text-gray-500">
-                <p>Aún no tienes citas programadas.</p>
+              <CardContent>
+                {loadingCitas ? (
+                  <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-cyan-600" /></div>
+                ) : errorCitas ? (
+                  <div className="text-center py-10 text-red-500 flex flex-col items-center gap-2"><AlertCircle size={20} /> <p>{errorCitas}</p></div>
+                ) : proximasCitas.length > 0 ? (
+                  proximasCitas.map(cita => <CitaCard key={cita.id} cita={cita} />)
+                ) : (
+                  <div className="text-center py-10 text-gray-500"><p>Aún no tienes citas programadas.</p></div>
+                )}
               </CardContent>
             </Card>
 
@@ -104,8 +161,16 @@ export default function Dashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2"><History /> Historial de Citas</CardTitle>
               </CardHeader>
-              <CardContent className="text-center py-10 text-gray-500">
-                <p>Aquí aparecerán tus citas completadas.</p>
+              <CardContent>
+                {loadingCitas ? (
+                  <div className="flex justify-center items-center py-10"><Loader2 className="h-8 w-8 animate-spin text-cyan-600" /></div>
+                ) : errorCitas ? (
+                  <div className="text-center py-10 text-red-500 flex flex-col items-center gap-2"><AlertCircle size={20} /> <p>{errorCitas}</p></div>
+                ) : historialCitas.length > 0 ? (
+                  historialCitas.map(cita => <CitaCard key={cita.id} cita={cita} />)
+                ) : (
+                  <div className="text-center py-10 text-gray-500"><p>Aquí aparecerán tus citas completadas.</p></div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
