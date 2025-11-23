@@ -33,8 +33,8 @@ export default function Navbar() {
     <nav className="bg-white shadow-md fixed w-full z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <Link to="/" className="flex-shrink-0 font-bold text-xl text-black">
-            SindiNails
+          <Link to="/" className="flex-shrink-0 flex items-center">
+            <img className="h-14 w-14 rounded-full object-cover shadow-md transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-lg hover:rotate-[-6deg]" src="/src/assets/SindiNailsLogoBooksy.JPG" alt="SindiNails Logo" />
           </Link>
 
           {/* Menu de escritorio */}

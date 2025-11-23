@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../router/api.js';
 import { useAuth } from '../../context/AuthContext';
 import { motion } from 'framer-motion';
-import { format } from 'date-fns';
+import { format, parse, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Componentes de UI
@@ -108,7 +108,7 @@ export default function ReservarCita() {
       const payload = {
         idServicio: servicio.id,
         idTrabajador: selectedTrabajador.id,
-        fechaHoraInicio: fechaHoraInicio.toISOString(),
+        fechaHoraInicio: `${format(selectedDate, 'yyyy-MM-dd')}T${selectedTime}:00`,
       };
 
       await apiClient.post('/citas', payload);
@@ -159,15 +159,17 @@ export default function ReservarCita() {
               <div className="border-t border-gray-200 pt-4 space-y-3 text-gray-700">
                 {selectedTrabajador && <div className="flex items-center gap-2"><User size={16} /> {selectedTrabajador.nombre}</div>}
                 {selectedDate && <div className="flex items-center gap-2"><CalendarIcon size={16} /> {format(selectedDate, 'PPP', { locale: es })}</div>}
-                {selectedTime && <div className="flex items-center gap-2 text-cyan-600 font-semibold"><Clock size={16} /> {selectedTime}</div>}
+                {selectedTime && servicio && (
+                  <div className="flex items-center gap-2 text-cyan-600 font-semibold">
+                    <Clock size={16} /> 
+                    {`${selectedTime} - ${format(addMinutes(parse(selectedTime, 'HH:mm', new Date()), servicio.duracionEnMinutos), 'HH:mm')}`}
+                  </div>
+                )}
               </div>
               <Button onClick={handleConfirmBooking} disabled={!selectedTime || isSubmitting} className="w-full mt-4 bg-cyan-600 hover:bg-cyan-700">
                 {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
                 Confirmar Reserva
               </Button>
-              {selectedTrabajador && <div className="flex items-center gap-2"><User size={16} /> {selectedTrabajador.nombre}</div>}
-              {selectedDate && <div className="flex items-center gap-2"><CalendarIcon size={16} /> {format(selectedDate, 'PPP', { locale: es })}</div>}
-              {selectedTime && <div className="flex items-center gap-2"><Clock size={16} /> {selectedTime}</div>}
             </CardContent>
           </Card>
         </div>
@@ -207,7 +209,7 @@ export default function ReservarCita() {
                     selected={selectedDate}
                     onSelect={setSelectedDate}
                     disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
-                    className="rounded-md border"
+                    className="rounded-md border [cell-padding:0] w-full max-w-md"
                     locale={es}
                   />
                 </CardContent>
@@ -229,8 +231,15 @@ export default function ReservarCita() {
                   {loadingHoras ? (
                     <div className="flex items-center gap-2 text-gray-500"><Loader2 className="h-5 w-5 animate-spin" /> Buscando horas...</div>
                   ) : horasDisponibles.length > 0 ? (
-                    <div className="flex flex-wrap gap-3">
-                      {horasDisponibles.map(hora => <Button key={hora} variant={selectedTime === hora ? 'default' : 'outline'} onClick={() => handleSelectTime(hora)}>{hora}</Button>)}
+                    <div className="flex gap-3 overflow-x-auto pb-4">
+                      {horasDisponibles.map(horaInicio => {
+                        const displayTime = horaInicio;
+                        return (
+                          <Button key={horaInicio} variant={selectedTime === horaInicio ? 'default' : 'outline'} onClick={() => handleSelectTime(horaInicio)} className="flex-shrink-0">
+                            {displayTime}
+                          </Button>
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 text-orange-600"><AlertCircle size={18} /> No hay horas disponibles para este día.</div>
