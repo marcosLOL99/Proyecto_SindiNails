@@ -1,18 +1,21 @@
 package com.SindiNails.backend.repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
+import com.SindiNails.backend.model.Cita;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.SindiNails.backend.model.Cita;
+import java.time.LocalDateTime;
+import java.util.List;
 
 public interface RepositorioCita extends JpaRepository<Cita, Long> {
+    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
+    List<Cita> findCitasSolapadas(@Param("trabajadorId") Long trabajadorId, @Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin);
+
+    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.id != :citaId AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
+    List<Cita> findCitasSolapadasExcluyendoCita(@Param("trabajadorId") Long trabajadorId, @Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin, @Param("citaId") Long citaId);
 
     List<Cita> findByClienteIdOrderByFechaHoraInicioDesc(Long clienteId);
 
-    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.estado != 'CANCELADA' AND ((c.fechaHoraInicio < :fin AND c.fechaHoraFin > :inicio))")
-    List<Cita> findCitasSolapadas(@Param("trabajadorId") Long trabajadorId, @Param("inicio") LocalDateTime inicio, @Param("fin") LocalDateTime fin);
+    List<Cita> findAllByOrderByFechaHoraInicioDesc();
 }

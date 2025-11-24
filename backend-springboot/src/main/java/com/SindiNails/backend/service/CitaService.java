@@ -1,6 +1,7 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.CitaDto;
+import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.CreateCitaDto;
 import com.SindiNails.backend.dto.ServicioResumenDto;
 import com.SindiNails.backend.dto.TrabajadorDto;
@@ -13,6 +14,7 @@ import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioServicios;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
+import com.SindiNails.backend.repository.RepositorioUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,7 @@ public class CitaService {
     private final RepositorioCita repositorioCita;
     private final RepositorioTrabajador repositorioTrabajador;
     private final RepositorioServicios repositorioServicios;
+    private final RepositorioUsuario repositorioUsuario;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -62,8 +65,59 @@ public class CitaService {
         return convertToDto(citaGuardada);
     }
 
+    @Transactional
+    public CitaDto createCitaByAdmin(AdminCreateCitaDto createCitaDto) {
+        Usuario cliente = repositorioUsuario.findById(createCitaDto.getIdCliente())
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + createCitaDto.getIdCliente()));
+
+        return createCita(createCitaDto, cliente);
+    }
+
+    @Transactional
+    public CitaDto updateCita(Long citaId, CreateCitaDto updateCitaDto) {
+        Cita citaExistente = repositorioCita.findById(citaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
+
+        ServicioLocal servicio = repositorioServicios.findById(updateCitaDto.getIdServicio())
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + updateCitaDto.getIdServicio()));
+
+        Trabajador trabajador = repositorioTrabajador.findById(updateCitaDto.getIdTrabajador())
+                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + updateCitaDto.getIdTrabajador()));
+
+        LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
+        LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
+
+        // Validar disponibilidad excluyendo la propia cita que se está actualizando
+        List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(), fechaHoraInicio, fechaHoraFin, citaId);
+        if (!citasSolapadas.isEmpty()) {
+            throw new IllegalStateException("El trabajador no está disponible en el nuevo horario seleccionado.");
+        }
+
+        citaExistente.setTrabajador(trabajador);
+        citaExistente.setServicio(servicio);
+        citaExistente.setFechaHoraInicio(fechaHoraInicio);
+        citaExistente.setFechaHoraFin(fechaHoraFin);
+
+        Cita citaActualizada = repositorioCita.save(citaExistente);
+        return convertToDto(citaActualizada);
+    }
+
+    public void deleteCita(Long citaId) {
+        if (!repositorioCita.existsById(citaId)) {
+            throw new ResourceNotFoundException("Cita no encontrada con id: " + citaId);
+        }
+        repositorioCita.deleteById(citaId);
+    }
+
     public List<CitaDto> getMisCitas(Usuario cliente) {
         List<Cita> citas = repositorioCita.findByClienteIdOrderByFechaHoraInicioDesc(cliente.getId());
+        return citas.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<CitaDto> getAllCitas() {
+        List<Cita> citas = repositorioCita.findAllByOrderByFechaHoraInicioDesc();
         return citas.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());

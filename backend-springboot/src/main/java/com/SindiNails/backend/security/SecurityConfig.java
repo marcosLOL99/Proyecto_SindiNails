@@ -27,11 +27,16 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(cors -> cors.configurationSource(corsConfigurationSource())) // Habilitar CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", 
-                                       "/api/servicios/**", 
-                                       "/api/tiposervicios/**").permitAll()
+                        .requestMatchers("/api/auth/**",
+                                       "/api/servicios/**",
+                                       "/api/tiposervicios/**",
+                                       "/api/trabajadores",
+                                       "/api/citas/disponibilidad").permitAll()
+                        
+                        .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
+
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

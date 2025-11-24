@@ -1,10 +1,13 @@
 package com.SindiNails.backend.service;
 
+import com.SindiNails.backend.dto.CreateUpdateTrabajadorDto;
 import com.SindiNails.backend.dto.TrabajadorDto;
+import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,6 +23,41 @@ public class TrabajadorService {
         return trabajadores.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
+    }
+
+    public List<Trabajador> getAllTrabajadores() {
+        return repositorioTrabajador.findAll();
+    }
+
+    @Transactional
+    public Trabajador createTrabajador(CreateUpdateTrabajadorDto trabajadorDto) {
+        Trabajador nuevoTrabajador = Trabajador.builder()
+                .nombre(trabajadorDto.getNombre())
+                .apellidos(trabajadorDto.getApellidos())
+                .activo(trabajadorDto.getActivo())
+                .build();
+        return repositorioTrabajador.save(nuevoTrabajador);
+    }
+
+    @Transactional
+    public Trabajador updateTrabajador(Long id, CreateUpdateTrabajadorDto trabajadorDto) {
+        Trabajador trabajadorExistente = repositorioTrabajador.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + id));
+
+        trabajadorExistente.setNombre(trabajadorDto.getNombre());
+        trabajadorExistente.setApellidos(trabajadorDto.getApellidos());
+        trabajadorExistente.setActivo(trabajadorDto.getActivo());
+
+        return repositorioTrabajador.save(trabajadorExistente);
+    }
+
+    public void deleteTrabajador(Long id) {
+        if (!repositorioTrabajador.existsById(id)) {
+            throw new ResourceNotFoundException("Trabajador no encontrado con id: " + id);
+        }
+        // Nota: Si un trabajador tiene citas asociadas, esto podría fallar.
+        // Una estrategia más segura sería una eliminación lógica (desactivar al trabajador).
+        repositorioTrabajador.deleteById(id);
     }
 
     private TrabajadorDto convertToDto(Trabajador trabajador) {
