@@ -3,6 +3,7 @@ package com.SindiNails.backend.service;
 import com.SindiNails.backend.dto.CitaDto;
 import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.CreateCitaDto;
+import com.SindiNails.backend.dto.UsuarioResumenDto;
 import com.SindiNails.backend.dto.ServicioResumenDto;
 import com.SindiNails.backend.dto.TrabajadorDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
@@ -182,6 +183,13 @@ public class CitaService {
                 .apellidos(cita.getTrabajador().getApellidos())
                 .build();
 
+        UsuarioResumenDto clienteDto = UsuarioResumenDto.builder()
+                .id(cita.getCliente().getId())
+                .nombre(cita.getCliente().getNombre())
+                .apellidos(cita.getCliente().getApellidos())
+                .email(cita.getCliente().getEmail())
+                .build();
+
         return CitaDto.builder()
                 .id(cita.getId())
                 .fechaHoraInicio(cita.getFechaHoraInicio())
@@ -189,6 +197,7 @@ public class CitaService {
                 .estado(cita.getEstado())
                 .servicio(servicioDto)
                 .trabajador(trabajadorDto)
+                .cliente(clienteDto)
                 .build();
     }
 }

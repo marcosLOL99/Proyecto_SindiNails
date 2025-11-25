@@ -20,14 +20,6 @@ export default function Dashboard() {
   const [loadingCitas, setLoadingCitas] = useState(true);
   const [errorCitas, setErrorCitas] = useState(null);
 
-  if (!user) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-12 w-12 animate-spin text-cyan-600" />
-      </div>
-    );
-  }
-
   useEffect(() => {
     const fetchCitas = async () => {
       try {
@@ -43,9 +35,21 @@ export default function Dashboard() {
       }
     };
 
-    fetchCitas();
-  }, []);
+    // Solo buscamos las citas si tenemos un usuario
+    if (user) {
+      fetchCitas();
+    }
+  }, [user]); // Añadimos 'user' como dependencia para que se ejecute cuando el usuario esté disponible
 
+  // El retorno temprano por carga debe estar DESPUÉS de todos los hooks
+  if (loading || !user) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
+  
   const ahora = new Date();
   const proximasCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) > ahora);
   const historialCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) <= ahora);

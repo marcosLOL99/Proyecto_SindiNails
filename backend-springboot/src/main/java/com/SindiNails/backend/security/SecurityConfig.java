@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -30,10 +31,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**",
-                                       "/api/servicios/**",
-                                       "/api/tiposervicios/**",
-                                       "/api/trabajadores",
-                                       "/api/citas/disponibilidad").permitAll()
+                                       "/api/citas/disponibilidad",
+                                       "/api/servicios/**", // Permitir todos los métodos para servicios
+                                       "/api/tiposervicios/**").permitAll() // Permitir todos los métodos para tipos de servicio
+                        .requestMatchers(HttpMethod.GET, "/api/trabajadores").permitAll() // Solo permitir GET público para trabajadores
                         
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
 

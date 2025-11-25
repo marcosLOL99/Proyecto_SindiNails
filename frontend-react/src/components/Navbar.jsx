@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,13 +10,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Home, Hammer, Phone, LogIn, User, LogOut, LayoutDashboard, UserPlus } from "lucide-react";
+import { Menu, X, Home, Hammer, Phone, LogIn, User, LogOut, LayoutDashboard, UserPlus, ShieldCheck } from "lucide-react";
 
 export default function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user, logout, isAdmin } = useAuth();
 
   const navItems = [
     { name: "Inicio", path: "/", icon: <Home size={18} /> },
@@ -64,12 +64,17 @@ export default function Navbar() {
                     Hola, {user?.nombre}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="bg-white">
                   <DropdownMenuLabel>Mi Cuenta</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild className="cursor-pointer">
                     <Link to="/dashboard"><LayoutDashboard className="mr-2 h-4 w-4" />Mi Panel</Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/admin"><ShieldCheck className="mr-2 h-4 w-4" />Panel Admin</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-50">
                     <LogOut className="mr-2 h-4 w-4" />
@@ -124,6 +129,11 @@ export default function Navbar() {
             {isAuthenticated ? (
               <>
                 <Link to="/dashboard" onClick={() => setOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"><LayoutDashboard size={18} />Mi Panel</Link>
+                {isAdmin && (
+                  <Link to="/admin" onClick={() => setOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100">
+                    <ShieldCheck size={18} />Panel Admin
+                  </Link>
+                )}
                 <button onClick={() => { handleLogout(); setOpen(false); }} className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-red-500 hover:bg-red-50">
                   <LogOut size={18} />Cerrar Sesión
                 </button>

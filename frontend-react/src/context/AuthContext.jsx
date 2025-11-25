@@ -1,5 +1,6 @@
 import { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { apiClient, setupInterceptors } from '../router/api.js';
+import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext(null);
 
@@ -7,13 +8,25 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const processToken = useCallback((jwtToken) => {
+    if (jwtToken) {
+      localStorage.setItem('token', jwtToken);
+      setToken(jwtToken);
+      const decodedToken = jwtDecode(jwtToken);
+      setIsAdmin(decodedToken.role === 'ADMIN');
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   const fetchUser = useCallback(async () => {
     if (localStorage.getItem('token')) {
       try {
         const response = await apiClient.get('/users/me');
         setUser(response.data);
+        setIsAdmin(response.data.role === 'ADMIN');
         setIsAuthenticated(true);
       } catch (error) {
         console.error("Error fetching user, logging out", error);
@@ -23,28 +36,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    const tokenFromStorage = localStorage.getItem('token');
+    if (tokenFromStorage) {
+      processToken(tokenFromStorage);
+    }
     fetchUser();
-  }, [fetchUser]);
+  }, [fetchUser, processToken]);
 
   const login = async (email, password) => {
     const response = await apiClient.post('/auth/login', { email, password });
-    const { token } = response.data;
-    if (token) {
-      localStorage.setItem('token', token);
-      setToken(token);
-      await fetchUser();
-    }
+    processToken(response.data.token);
+    await fetchUser();
     return response;
   };
 
   const register = async (nombre, apellidos, email, telefono, password) => {
     const response = await apiClient.post('/auth/register', { nombre, apellidos, email, telefono, password });
-    const { token } = response.data;
-    if (token) {
-      localStorage.setItem('token', token);
-      setToken(token);
-      await fetchUser();
-    }
+    processToken(response.data.token);
+    await fetchUser();
     return response;
   };
 
@@ -53,6 +62,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);
+    setIsAdmin(false);
   };
 
   const updateUser = async (userData) => {
@@ -68,6 +78,7 @@ export const AuthProvider = ({ children }) => {
     token,
     user,
     isAuthenticated,
+    isAdmin,
     loading,
     login,
     register,
@@ -77,7 +88,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 };

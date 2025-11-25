@@ -18,7 +18,7 @@ public class CitaDto {
     private LocalDateTime fechaHoraInicio;
     private LocalDateTime fechaHoraFin;
     private EstadoCita estado;
-
     private ServicioResumenDto servicio;
     private TrabajadorDto trabajador;
+    private UsuarioResumenDto cliente;
 }

@@ -51,13 +51,14 @@ public class TrabajadorService {
         return repositorioTrabajador.save(trabajadorExistente);
     }
 
+    @Transactional
     public void deleteTrabajador(Long id) {
-        if (!repositorioTrabajador.existsById(id)) {
-            throw new ResourceNotFoundException("Trabajador no encontrado con id: " + id);
-        }
-        // Nota: Si un trabajador tiene citas asociadas, esto podría fallar.
-        // Una estrategia más segura sería una eliminación lógica (desactivar al trabajador).
-        repositorioTrabajador.deleteById(id);
+        Trabajador trabajador = repositorioTrabajador.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + id));
+
+        // Borrado lógico: en lugar de eliminar, lo desactivamos.
+        trabajador.setActivo(false);
+        repositorioTrabajador.save(trabajador);
     }
 
     private TrabajadorDto convertToDto(Trabajador trabajador) {
