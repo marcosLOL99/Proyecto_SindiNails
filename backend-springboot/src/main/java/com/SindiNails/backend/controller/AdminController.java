@@ -1,6 +1,7 @@
 package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.dto.CitaDto;
+import com.SindiNails.backend.dto.CitasPorDiaDto;
 import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.UsuarioDto;
 import com.SindiNails.backend.dto.CreateUpdateServicioDto;
@@ -41,6 +42,12 @@ public class AdminController {
     public ResponseEntity<CitaDto> createCitaByAdmin(@Valid @RequestBody AdminCreateCitaDto createCitaDto) {
         CitaDto nuevaCita = citaService.createCitaByAdmin(createCitaDto);
         return new ResponseEntity<>(nuevaCita, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/stats/citas-semanales")
+    public ResponseEntity<List<CitasPorDiaDto>> getCitasSemanales() {
+        List<CitasPorDiaDto> stats = citaService.getCitasUltimaSemana();
+        return ResponseEntity.ok(stats);
     }
 
     @PutMapping("/citas/{id}")

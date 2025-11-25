@@ -1,6 +1,7 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.CitaDto;
+import com.SindiNails.backend.dto.CitasPorDiaDto;
 import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.CreateCitaDto;
 import com.SindiNails.backend.dto.UsuarioResumenDto;
@@ -24,9 +25,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -40,15 +45,18 @@ public class CitaService {
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
         ServicioLocal servicio = repositorioServicios.findById(createCitaDto.getIdServicio())
-                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + createCitaDto.getIdServicio()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Servicio no encontrado con id: " + createCitaDto.getIdServicio()));
 
         Trabajador trabajador = repositorioTrabajador.findById(createCitaDto.getIdTrabajador())
-                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + createCitaDto.getIdTrabajador()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Trabajador no encontrado con id: " + createCitaDto.getIdTrabajador()));
 
         LocalDateTime fechaHoraInicio = createCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
 
-        List<Cita> citasSolapadas = repositorioCita.findCitasSolapadas(trabajador.getId(), fechaHoraInicio, fechaHoraFin);
+        List<Cita> citasSolapadas = repositorioCita.findCitasSolapadas(trabajador.getId(), fechaHoraInicio,
+                fechaHoraFin);
         if (!citasSolapadas.isEmpty()) {
             throw new IllegalStateException("El trabajador no está disponible en el horario seleccionado.");
         }
@@ -69,7 +77,8 @@ public class CitaService {
     @Transactional
     public CitaDto createCitaByAdmin(AdminCreateCitaDto createCitaDto) {
         Usuario cliente = repositorioUsuario.findById(createCitaDto.getIdCliente())
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + createCitaDto.getIdCliente()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Cliente no encontrado con id: " + createCitaDto.getIdCliente()));
 
         return createCita(createCitaDto, cliente);
     }
@@ -80,16 +89,19 @@ public class CitaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
 
         ServicioLocal servicio = repositorioServicios.findById(updateCitaDto.getIdServicio())
-                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + updateCitaDto.getIdServicio()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Servicio no encontrado con id: " + updateCitaDto.getIdServicio()));
 
         Trabajador trabajador = repositorioTrabajador.findById(updateCitaDto.getIdTrabajador())
-                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + updateCitaDto.getIdTrabajador()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Trabajador no encontrado con id: " + updateCitaDto.getIdTrabajador()));
 
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
 
         // Validar disponibilidad excluyendo la propia cita que se está actualizando
-        List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(), fechaHoraInicio, fechaHoraFin, citaId);
+        List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(),
+                fechaHoraInicio, fechaHoraFin, citaId);
         if (!citasSolapadas.isEmpty()) {
             throw new IllegalStateException("El trabajador no está disponible en el nuevo horario seleccionado.");
         }
@@ -145,14 +157,16 @@ public class CitaService {
         List<String> horariosDisponibles = new ArrayList<>();
         LocalTime horaActual = HORA_INICIO_JORNADA;
 
-        while (horaActual.plusMinutes(DURACION_SERVICIO).isBefore(HORA_FIN_JORNADA) || horaActual.plusMinutes(DURACION_SERVICIO).equals(HORA_FIN_JORNADA)) {
+        while (horaActual.plusMinutes(DURACION_SERVICIO).isBefore(HORA_FIN_JORNADA)
+                || horaActual.plusMinutes(DURACION_SERVICIO).equals(HORA_FIN_JORNADA)) {
             LocalDateTime posibleInicio = fecha.atTime(horaActual);
             LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
 
             boolean estaSolapado = false;
             for (Cita citaExistente : citasDelDia) {
                 // Comprobamos si el nuevo hueco se solapa con una cita existente
-                if (posibleInicio.isBefore(citaExistente.getFechaHoraFin()) && posibleFin.isAfter(citaExistente.getFechaHoraInicio())) {
+                if (posibleInicio.isBefore(citaExistente.getFechaHoraFin())
+                        && posibleFin.isAfter(citaExistente.getFechaHoraInicio())) {
                     estaSolapado = true;
                     break;
                 }
@@ -167,6 +181,37 @@ public class CitaService {
             horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
         }
         return horariosDisponibles;
+    }
+
+    public List<CitasPorDiaDto> getCitasUltimaSemana() {
+        LocalDate hoy = LocalDate.now();
+        LocalDateTime fechaInicio = hoy.minusDays(6).atStartOfDay(); // Desde hace 6 días hasta hoy (7 días en total)
+
+        // 1. Obtener los conteos de la base de datos
+        List<Map<String, Object>> resultadosDb = repositorioCita.countCitasFromDate(fechaInicio);
+
+        // 2. Convertir los resultados a un mapa para fácil acceso: Map<LocalDate, Long>
+        Map<LocalDate, Long> conteoPorFecha = resultadosDb.stream()
+                .collect(Collectors.toMap(
+                        // La base de datos devuelve java.sql.Date, lo convertimos a LocalDate
+                        r -> ((java.sql.Date) r.get("fecha")).toLocalDate(),
+                        r -> (Long) r.get("cantidad")));
+
+        // 3. Generar la lista para los últimos 7 días, rellenando con 0 si no hay citas
+        return IntStream.range(0, 7)
+                .mapToObj(i -> hoy.minusDays(i)) // Iterar desde hoy hacia atrás 6 días
+                .map(fecha -> {
+                    // Formatear el nombre del día (ej: "Lun", "Mar")
+                    String diaSemana = fecha.getDayOfWeek().getDisplayName(TextStyle.SHORT, new Locale("es", "ES"));
+                    long cantidad = conteoPorFecha.getOrDefault(fecha, 0L);
+                    return new CitasPorDiaDto(diaSemana, cantidad);
+                })
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toList(),
+                        list -> {
+                            java.util.Collections.reverse(list); // Invertir para que sea cronológico
+                            return list;
+                        }));
     }
 
     private CitaDto convertToDto(Cita cita) {
