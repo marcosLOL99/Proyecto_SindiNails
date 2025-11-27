@@ -25,6 +25,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { PlusCircle, Edit, Trash2, Loader2, CalendarIcon, FilterX } from 'lucide-react';
 import CitaForm from '../../components/CitaForm';
 import { toast } from 'sonner';
@@ -122,6 +123,20 @@ const AdminGestionCitas = () => {
     return <div className="text-center text-red-500 bg-red-100 p-4 rounded-md">{error}</div>;
   }
 
+  const EstadoBadge = ({ estado }) => {
+    const variants = {
+      CONFIRMADA: 'bg-blue-100 text-blue-800 hover:bg-blue-100',
+      COMPLETADA: 'bg-green-100 text-green-800 hover:bg-green-100',
+      CANCELADA: 'bg-red-100 text-red-800 hover:bg-red-100',
+      NO_ASISTIO: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-100',
+    };
+    return (
+      <Badge variant="outline" className={`border-transparent capitalize ${variants[estado] || 'bg-gray-100 text-gray-800'}`}>
+        {estado.toLowerCase().replace('_', ' ')}
+      </Badge>
+    );
+  };
+
   return (
     <div className="p-4">
       <div className="flex justify-between items-center mb-6">
@@ -176,6 +191,7 @@ const AdminGestionCitas = () => {
               <TableHead className="font-bold">Servicio</TableHead>
               <TableHead className="font-bold">Trabajador</TableHead>
               <TableHead className="font-bold">Fecha y Hora</TableHead>
+              <TableHead className="font-bold">Estado</TableHead>
               <TableHead className="font-bold text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -187,6 +203,9 @@ const AdminGestionCitas = () => {
                   <TableCell>{cita.servicio.nombre}</TableCell>
                   <TableCell>{cita.trabajador.nombre}</TableCell>
                   <TableCell>{formatDate(cita.fechaHoraInicio)}</TableCell>
+                  <TableCell>
+                    <EstadoBadge estado={cita.estado} />
+                  </TableCell>
                   <TableCell className="text-right">
                     <Button onClick={() => handleOpenForm(cita)} variant="ghost" size="icon" className="text-blue-600 hover:text-blue-800">
                       <Edit size={18} />
@@ -198,7 +217,7 @@ const AdminGestionCitas = () => {
                 </TableRow>
               ))
             ) : (
-              <TableRow><TableCell colSpan="5" className="text-center">No hay citas para mostrar.</TableCell></TableRow>
+              <TableRow><TableCell colSpan="6" className="text-center">No hay citas para mostrar.</TableCell></TableRow>
             )}
           </TableBody>
         </Table>

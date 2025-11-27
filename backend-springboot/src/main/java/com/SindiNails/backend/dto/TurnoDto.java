@@ -1,15 +1,16 @@
 package com.SindiNails.backend.dto;
 
-import com.SindiNails.backend.model.DiaSemana;
 import lombok.Data;
 import java.time.LocalTime;
+import java.time.LocalDate;
+
 
 @Data
 public class TurnoDto {
     private Long id;
     private Long trabajadorId;
     private String trabajadorNombre;
-    private DiaSemana diaDeLaSemana;
+    private LocalDate fecha;
     private LocalTime horaInicio;
     private LocalTime horaFin;
 }

@@ -11,13 +11,11 @@ import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.repository.RepositorioTurno;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.YearMonth;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -39,7 +37,6 @@ public class CitaService {
     private final RepositorioUsuario repositorioUsuario;
     private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
     private final RepositorioTurno turnoRepository;
-    private final Environment env;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -121,6 +118,28 @@ public class CitaService {
         repositorioCita.deleteById(citaId);
     }
 
+    @Transactional
+    public void cancelarCita(Long citaId, Usuario cliente) {
+        Cita cita = repositorioCita.findById(citaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
+
+        // 1. Verificar que el usuario es el dueño de la cita
+        if (!cita.getCliente().getId().equals(cliente.getId())) {
+            throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
+        }
+
+        // 2. Verificar la regla de las 12 horas
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
+        if (ahora.isAfter(limiteCancelacion)) {
+            throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        // 3. Cambiar el estado y guardar
+        cita.setEstado(EstadoCita.CANCELADA);
+        repositorioCita.save(cita);
+    }
+
     public List<CitaDto> getMisCitas(Usuario cliente) {
         List<Cita> citas = repositorioCita.findByClienteIdOrderByFechaHoraInicioDesc(cliente.getId());
         return citas.stream()
@@ -135,41 +154,6 @@ public class CitaService {
                 .collect(Collectors.toList());
     }
 
-    private DiaSemana mapToDiaSemana(DayOfWeek dayOfWeek) {
-        switch (dayOfWeek) {
-            case MONDAY:
-                return DiaSemana.LUNES;
-            case TUESDAY:
-                return DiaSemana.MARTES;
-            case WEDNESDAY:
-                return DiaSemana.MIERCOLES;
-            case THURSDAY:
-                return DiaSemana.JUEVES;
-            case FRIDAY:
-                return DiaSemana.VIERNES;
-            case SATURDAY:
-                return DiaSemana.SABADO;
-            case SUNDAY:
-                return DiaSemana.DOMINGO;
-            default:
-                throw new IllegalArgumentException("Día de la semana no válido: " + dayOfWeek);
-        }
-    }
-
-    private List<LocalTime[]> parseTimeIntervals(String intervalsString) {
-        List<LocalTime[]> intervals = new ArrayList<>();
-        if (intervalsString == null || intervalsString.trim().isEmpty()) {
-            return intervals;
-        }
-        for (String part : intervalsString.split(",")) {
-            String[] times = part.split("-");
-            if (times.length == 2) {
-                intervals.add(new LocalTime[]{LocalTime.parse(times[0]), LocalTime.parse(times[1])});
-            }
-        }
-        return intervals;
-    }
-
     public List<String> getHorariosDisponibles(Long trabajadorId, Long servicioId, LocalDate fecha) {
         repositorioTrabajador.findById(trabajadorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId));
@@ -177,15 +161,13 @@ public class CitaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + servicioId));
 
         final int DURACION_SERVICIO = servicio.getDuracionEnMinutos();
-        final int INTERVALO_MINUTOS = 15; // Comprobamos la disponibilidad cada 15 minutos
+        final int INTERVALO_MINUTOS = 15;
 
-        // 1. Obtener los intervalos de trabajo REALES del día
         List<LocalTime[]> workingIntervals = getWorkingIntervalsForDay(trabajadorId, fecha);
         if (workingIntervals.isEmpty()) {
-            return new ArrayList<>(); // Si no hay horario de trabajo, no hay disponibilidad
+            return new ArrayList<>();
         }
 
-        // 2. Obtener citas y bloqueos existentes
         LocalDateTime inicioDelDia = fecha.atStartOfDay();
         LocalDateTime finDelDia = fecha.atTime(LocalTime.MAX);
         List<Cita> citasDelDia = repositorioCita.findCitasSolapadas(trabajadorId, inicioDelDia, finDelDia);
@@ -193,7 +175,6 @@ public class CitaService {
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, finDelDia, inicioDelDia));
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajadorId, finDelDia, inicioDelDia));
 
-        // 3. Generar y filtrar slots
         List<String> horariosDisponibles = new ArrayList<>();
         for (LocalTime[] interval : workingIntervals) {
             LocalTime horaActual = interval[0];
@@ -216,33 +197,12 @@ public class CitaService {
     }
 
     private List<LocalTime[]> getWorkingIntervalsForDay(Long trabajadorId, LocalDate fecha) {
-        // Obtener el día de la semana
-        DayOfWeek dayOfWeek = fecha.getDayOfWeek();
-        DiaSemana diaSemana = mapToDiaSemana(dayOfWeek);
-
-        // Obtener horario del negocio desde application.properties
-        String businessHoursStr = env.getProperty("horario.negocio." + diaSemana.name().toLowerCase());
-        List<LocalTime[]> businessIntervals = parseTimeIntervals(businessHoursStr);
-
-        // Obtener turnos del trabajador desde la BD
-        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndDiaDeLaSemana(trabajadorId, diaSemana);
-        List<LocalTime[]> workerIntervals = turnos.stream()
+        // La lógica correcta es simplemente devolver los turnos asignados al trabajador para esa fecha.
+        // El cálculo de intersección con el horario del negocio era incorrecto y la causa del error.
+        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFecha(trabajadorId, fecha);
+        return turnos.stream()
                 .map(t -> new LocalTime[]{t.getHoraInicio(), t.getHoraFin()})
                 .collect(Collectors.toList());
-
-        // Calcular la intersección entre el horario del negocio y los turnos del trabajador
-        List<LocalTime[]> finalIntervals = new ArrayList<>();
-        for (LocalTime[] businessInt : businessIntervals) {
-            for (LocalTime[] workerInt : workerIntervals) {
-                LocalTime start = businessInt[0].isAfter(workerInt[0]) ? businessInt[0] : workerInt[0];
-                LocalTime end = businessInt[1].isBefore(workerInt[1]) ? businessInt[1] : workerInt[1];
-
-                if (!start.isAfter(end) && !start.equals(end)) {
-                    finalIntervals.add(new LocalTime[]{start, end});
-                }
-            }
-        }
-        return finalIntervals;
     }
 
     private boolean isOverlapping(LocalDateTime start, LocalDateTime end, List<Cita> citas, List<PeriodoNoDisponible> bloqueos) {
@@ -260,14 +220,13 @@ public class CitaService {
     }
 
     public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
-        YearMonth yearMonth = YearMonth.of(anio, mes);
+        LocalDate primerDiaDelMes = LocalDate.of(anio, mes, 1);
+        LocalDate fechaInicioRango = primerDiaDelMes.with(DayOfWeek.MONDAY);
+
         List<LocalDate> diasNoDisponibles = new ArrayList<>();
 
-        // Iteramos por cada día del mes
-        for (int dia = 1; dia <= yearMonth.lengthOfMonth(); dia++) {
-            LocalDate fechaActual = yearMonth.atDay(dia);
-
-            // Si el día es pasado, lo añadimos directamente
+        for (int i = 0; i < 42; i++) {
+            LocalDate fechaActual = fechaInicioRango.plusDays(i);
             if (fechaActual.isBefore(LocalDate.now())) {
                 diasNoDisponibles.add(fechaActual);
             } else if (getHorariosDisponibles(trabajadorId, servicioId, fechaActual).isEmpty()) {
@@ -279,23 +238,18 @@ public class CitaService {
 
     public List<CitasPorDiaDto> getCitasUltimaSemana() {
         LocalDate hoy = LocalDate.now();
-        LocalDateTime fechaInicio = hoy.minusDays(6).atStartOfDay(); // Desde hace 6 días hasta hoy (7 días en total)
+        LocalDateTime fechaInicio = hoy.minusDays(6).atStartOfDay();
 
-        // 1. Obtener los conteos de la base de datos
         List<Map<String, Object>> resultadosDb = repositorioCita.countCitasFromDate(fechaInicio);
 
-        // 2. Convertir los resultados a un mapa para fácil acceso: Map<LocalDate, Long>
         Map<LocalDate, Long> conteoPorFecha = resultadosDb.stream()
                 .collect(Collectors.toMap(
-                        // La base de datos devuelve java.sql.Date, lo convertimos a LocalDate
                         r -> ((java.sql.Date) r.get("fecha")).toLocalDate(),
                         r -> (Long) r.get("cantidad")));
 
-        // 3. Generar la lista para los últimos 7 días, rellenando con 0 si no hay citas
         return IntStream.range(0, 7)
-                .mapToObj(i -> hoy.minusDays(i)) // Iterar desde hoy hacia atrás 6 días
+                .mapToObj(i -> hoy.minusDays(i))
                 .map(fecha -> {
-                    // Formatear el nombre del día (ej: "Lun", "Mar")
                     String diaSemana = fecha.getDayOfWeek().getDisplayName(TextStyle.SHORT, new Locale("es", "ES"));
                     long cantidad = conteoPorFecha.getOrDefault(fecha, 0L);
                     return new CitasPorDiaDto(diaSemana, cantidad);
@@ -303,7 +257,7 @@ public class CitaService {
                 .collect(Collectors.collectingAndThen(
                         Collectors.toList(),
                         list -> {
-                            java.util.Collections.reverse(list); // Invertir para que sea cronológico
+                            java.util.Collections.reverse(list);
                             return list;
                         }));
     }

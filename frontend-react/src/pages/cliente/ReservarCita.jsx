@@ -63,19 +63,20 @@ export default function ReservarCita() {
     if (selectedTrabajador) {
       const fetchDiasNoDisponibles = async () => {
         setLoadingDias(true);
+        // Usamos el mes visible en el calendario para la petición
+        const mesParaConsultar = currentMonth;
         try {
           const params = new URLSearchParams({
             trabajadorId: selectedTrabajador.id,
             servicioId: servicioId,
-            anio: currentMonth.getFullYear(),
-            mes: currentMonth.getMonth() + 1, // getMonth() es 0-indexado
+            anio: mesParaConsultar.getFullYear(),
+            mes: mesParaConsultar.getMonth() + 1, // getMonth() es 0-indexado
           });
           const res = await apiClient.get(`/citas/dias-no-disponibles?${params.toString()}`);
-          // Convertimos las fechas string del backend a objetos Date
-          // Normalizamos las fechas para evitar problemas con la zona horaria.
+          // Normalizamos las fechas a objetos Date en UTC para evitar problemas de zona horaria.
           const disabledDates = res.data.map(dateStr => {
-            const [year, month, day] = dateStr.split('-').map(Number);
-            return new Date(year, month - 1, day);
+            // new Date('YYYY-MM-DD') crea la fecha a medianoche en UTC, es más seguro.
+            return new Date(dateStr + 'T00:00:00');
           });
           setDiasNoDisponibles(disabledDates);
         } catch (err) {
@@ -199,8 +200,8 @@ export default function ReservarCita() {
                   </div>
                 )}
               </div>
-              <Button onClick={handleConfirmBooking} disabled={!selectedTime || isSubmitting} className="w-full mt-4 bg-cyan-600 hover:bg-cyan-700">
-                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              <Button onClick={handleConfirmBooking} disabled={!selectedTime || isSubmitting} className="w-full mt-4 bg-cyan-600 hover:bg-cyan-700 text-white">
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4 text-white" />}
                 Confirmar Reserva
               </Button>
             </CardContent>

@@ -1,13 +1,12 @@
 package com.SindiNails.backend.model;
 
 import java.time.LocalTime;
+import java.time.LocalDate;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -34,9 +33,8 @@ public class Turno {
     @JsonBackReference
     private Trabajador trabajador;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private DiaSemana diaDeLaSemana;
+    private LocalDate fecha;
 
     @Column(nullable = false)
     private LocalTime horaInicio;

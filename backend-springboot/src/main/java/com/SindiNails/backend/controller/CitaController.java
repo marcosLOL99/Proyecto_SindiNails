@@ -52,4 +52,10 @@ public class CitaController {
         List<LocalDate> dias = citaService.getDiasNoDisponibles(trabajadorId, servicioId, anio, mes);
         return ResponseEntity.ok(dias);
     }
+
+    @PatchMapping("/{id}/cancelar")
+    public ResponseEntity<Void> cancelarCita(@PathVariable Long id, @AuthenticationPrincipal Usuario cliente) {
+        citaService.cancelarCita(id, cliente);
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -9,10 +9,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface RepositorioCita extends JpaRepository<Cita, Long> {
-    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
+    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.estado != 'CANCELADA' AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
     List<Cita> findCitasSolapadas(@Param("trabajadorId") Long trabajadorId, @Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin);
 
-    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.id != :citaId AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
+    @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.id != :citaId AND c.estado != 'CANCELADA' AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
     List<Cita> findCitasSolapadasExcluyendoCita(@Param("trabajadorId") Long trabajadorId, @Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin, @Param("citaId") Long citaId);
 
     List<Cita> findByClienteIdOrderByFechaHoraInicioDesc(Long clienteId);

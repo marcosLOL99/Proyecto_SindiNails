@@ -120,6 +120,12 @@ public class AdminController {
         return new ResponseEntity<>(nuevoTurno, HttpStatus.CREATED);
     }
 
+    @PostMapping("/turnos/batch")
+    public ResponseEntity<List<TurnoDto>> createTurnoBatch(@Valid @RequestBody CreateTurnoBatchDto batchDto) {
+        List<TurnoDto> nuevosTurnos = turnoService.createTurnoBatch(batchDto);
+        return new ResponseEntity<>(nuevosTurnos, HttpStatus.CREATED);
+    }
+
     @PutMapping("/turnos/{id}")
     public ResponseEntity<TurnoDto> updateTurno(@PathVariable Long id, @Valid @RequestBody CreateUpdateTurnoDto turnoDto) {
         TurnoDto turnoActualizado = turnoService.updateTurno(id, turnoDto);
