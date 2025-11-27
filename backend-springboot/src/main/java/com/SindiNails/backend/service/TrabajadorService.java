@@ -56,7 +56,6 @@ public class TrabajadorService {
         Trabajador trabajador = repositorioTrabajador.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + id));
 
-        // Borrado lógico: en lugar de eliminar, lo desactivamos.
         trabajador.setActivo(false);
         repositorioTrabajador.save(trabajador);
     }

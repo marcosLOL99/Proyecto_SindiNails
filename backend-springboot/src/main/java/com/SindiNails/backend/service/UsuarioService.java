@@ -43,8 +43,6 @@ public class UsuarioService {
         if (!repositorioUsuario.existsById(id)) {
             throw new ResourceNotFoundException("Usuario no encontrado con id: " + id);
         }
-        // Advertencia: Esto puede fallar si el usuario tiene citas asociadas.
-        // Una eliminación lógica sería más segura en un entorno de producción real.
         repositorioUsuario.deleteById(id);
     }
 

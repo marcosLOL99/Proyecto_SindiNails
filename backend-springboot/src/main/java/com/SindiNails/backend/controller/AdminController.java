@@ -21,7 +21,7 @@ import java.util.List;
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
 public class AdminController {
-    // Inyectamos los servicios necesarios
+
     private final CitaService citaService;
     private final ServicioService servicioService;
     private final TrabajadorService trabajadorService;
@@ -30,6 +30,7 @@ public class AdminController {
     private final TurnoService turnoService;
 
     // --- Endpoints para Citas ---
+    
     @GetMapping("/citas")
     public ResponseEntity<List<CitaDto>> getAllCitas() {
         List<CitaDto> todasLasCitas = citaService.getAllCitas();

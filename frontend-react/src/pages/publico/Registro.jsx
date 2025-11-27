@@ -51,7 +51,6 @@ export default function Registro() {
 
     setLoading(true);
     try {
-      // Creamos una función de registro en el contexto para mantener la lógica centralizada
       await register(
         formData.nombre,
         formData.apellidos,
@@ -59,7 +58,7 @@ export default function Registro() {
         formData.telefono,
         formData.password
       );
-      navigate("/dashboard"); // Redirige al dashboard tras el registro exitoso
+      navigate("/dashboard");
     } catch (err) {
       const errorMessage = err.response?.data?.message || "Error al registrar la cuenta. Inténtalo más tarde.";
       setError(errorMessage);

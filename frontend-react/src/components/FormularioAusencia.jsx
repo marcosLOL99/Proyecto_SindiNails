@@ -47,7 +47,7 @@ const FormularioAusencia = ({ onSave, onCancel, tipoBloqueo = 'TRABAJADOR' }) =>
       const fetchTrabajadores = async () => {
         try {
           const response = await apiClient.get('/admin/trabajadores');
-          setTrabajadores(response.data.filter(t => t.activo)); // Solo trabajadores activos
+          setTrabajadores(response.data.filter(t => t.activo));
         } catch (error) {
           toast.error("No se pudieron cargar los trabajadores.");
         }

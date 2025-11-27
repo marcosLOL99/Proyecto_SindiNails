@@ -28,7 +28,6 @@ public class TurnoService {
         if (!trabajadorRepository.existsById(trabajadorId)) {
             throw new ResourceNotFoundException("No se encontró el trabajador con ID: " + trabajadorId);
         }
-        // Consulta directa al repositorio de turnos para asegurar datos frescos.
         List<Turno> turnos = turnoRepository.findAll().stream()
                 .filter(t -> t.getTrabajador().getId().equals(trabajadorId)).collect(Collectors.toList());
         return turnos.stream().map(this::mapToDto).collect(Collectors.toList());
@@ -69,13 +68,11 @@ public class TurnoService {
         Trabajador trabajador = trabajadorRepository.findById(batchDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + batchDto.getTrabajadorId()));
 
-        // Primero, eliminamos los turnos existentes para esa semana para evitar duplicados
         LocalDate fechaFinSemana = batchDto.getFechaInicioSemana().plusDays(6);
         List<Turno> turnosExistentes = trabajador.getTurnos().stream()
                 .filter(t -> !t.getFecha().isBefore(batchDto.getFechaInicioSemana()) && !t.getFecha().isAfter(fechaFinSemana))
                 .collect(Collectors.toList());
         
-        // Eliminar la asociación del lado del trabajador antes de borrar
         trabajador.getTurnos().removeAll(turnosExistentes);
         turnoRepository.deleteAll(turnosExistentes);
 

@@ -13,10 +13,8 @@ public class CreateTurnoBatchDto {
     private Long trabajadorId;
 
     @NotNull
-    private LocalDate fechaInicioSemana; // Lunes de la semana seleccionada
+    private LocalDate fechaInicioSemana;
 
-    // Un mapa donde la clave es el día de la semana (0=Lunes, 1=Martes...)
-    // y el valor es el horario para ese día.
     private Map<Integer, HorarioDia> horarios;
 
     @Data

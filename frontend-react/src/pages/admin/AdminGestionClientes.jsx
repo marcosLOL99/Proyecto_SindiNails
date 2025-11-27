@@ -18,7 +18,6 @@ import { Loader2, Mail, Phone, Edit, Trash2, Users, PlusCircle, FilterX } from '
 import ClienteForm from '../../components/ClienteForm';
 import { toast } from 'sonner';
 
-// Componente para el avatar con las iniciales
 const Avatar = ({ nombre, apellidos }) => {
   const iniciales = `${nombre?.[0] || ''}${apellidos?.[0] || ''}`.toUpperCase();
   return (
@@ -48,7 +47,6 @@ const AdminGestionClientes = () => {
       try {
         setLoading(true);
         const response = await apiClient.get('/admin/clientes');
-        // Ordenar alfabéticamente por nombre
         const sortedClientes = response.data.sort((a, b) => a.nombre.localeCompare(b.nombre));
         setClientes(sortedClientes);
         setFilteredClientes(sortedClientes);
@@ -61,7 +59,6 @@ const AdminGestionClientes = () => {
       }
     };
   
-  // useEffect para aplicar el filtro
   useEffect(() => {
     let result = clientes;
     if (filtro) {
@@ -79,9 +76,8 @@ const AdminGestionClientes = () => {
     setIsFormOpen(false);
     setEditingCliente(null);
     fetchData();
-    // Si el cliente seleccionado fue el que se editó, lo refrescamos
     if (selectedCliente && editingCliente && selectedCliente.id === editingCliente.id) {
-      setSelectedCliente(null); // Forzamos a que se refresque la vista de detalles
+      setSelectedCliente(null);
     }
   };
 
@@ -96,7 +92,7 @@ const AdminGestionClientes = () => {
       await apiClient.delete(`/admin/clientes/${deletingClienteId}`);
       toast.success('Cliente desactivado con éxito');
       setDeletingClienteId(null);
-      setSelectedCliente(null); // Deseleccionar para evitar mostrar datos de un cliente "borrado"
+      setSelectedCliente(null);
       fetchData();
     } catch (error) {
       toast.error('No se pudo desactivar el cliente.');

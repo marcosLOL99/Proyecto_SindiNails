@@ -23,6 +23,6 @@ public class BloqueoDto {
     @NotNull
     private TipoBloqueo tipo;
 
-    private Long trabajadorId; // Opcional, solo para tipo = TRABAJADOR
+    private Long trabajadorId;
 }
 

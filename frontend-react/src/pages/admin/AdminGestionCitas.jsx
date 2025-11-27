@@ -37,16 +37,13 @@ const AdminGestionCitas = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Estados para los filtros
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTrabajador, setSelectedTrabajador] = useState('');
 
-  // Estados para modales
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCita, setEditingCita] = useState(null);
   const [deletingCitaId, setDeletingCitaId] = useState(null);
 
-  // useEffect para aplicar los filtros cuando cambian
   useEffect(() => {
     let result = citas;
     if (selectedDate) {
@@ -63,7 +60,6 @@ const AdminGestionCitas = () => {
     return new Date(dateString).toLocaleDateString('es-ES', options);
   };
 
-  // Definición de fetchData como useCallback para que sea estable y reutilizable
   const fetchData = useCallback(async (showToast = false) => {
     try {
       setLoading(true);
@@ -84,12 +80,12 @@ const AdminGestionCitas = () => {
     } finally {
       setLoading(false);
     }
-  }, []); // Dependencias vacías si no usa props/estados externos que cambien
+  }, []);
 
   const handleSave = useCallback(() => {
     setIsFormOpen(false);
     setEditingCita(null);
-    fetchData(true); // Recarga los datos y muestra un toast
+    fetchData(true);
   }, [fetchData]);
 
   const handleOpenForm = useCallback((cita = null) => {
@@ -103,7 +99,7 @@ const AdminGestionCitas = () => {
       await apiClient.delete(`/admin/citas/${deletingCitaId}`);
       toast.success('Cita eliminada con éxito');
       setDeletingCitaId(null);
-      fetchData(); // Recarga los datos
+      fetchData();
     } catch (error) {
       toast.error('No se pudo eliminar la cita.');
       console.error(error);
@@ -113,7 +109,7 @@ const AdminGestionCitas = () => {
 
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Ahora fetchData es una dependencia estable
+  }, [fetchData]);
 
   if (loading) {
     return <div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin text-cyan-600" /></div>;

@@ -32,10 +32,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**",
                                        "/api/citas/disponibilidad",
-                                       "/api/servicios/**", // Permitir todos los métodos para servicios
+                                       "/api/servicios/**",
                                        "/api/citas/dias-no-disponibles",
-                                       "/api/tiposervicios/**").permitAll() // Permitir todos los métodos para tipos de servicio
-                        .requestMatchers(HttpMethod.GET, "/api/trabajadores").permitAll() // Solo permitir GET público para trabajadores
+                                       "/api/tiposervicios/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/trabajadores").permitAll()
                         
                         .requestMatchers("/api/admin/**").hasAuthority("ADMIN")
 

@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { format, parse, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Componentes de UI
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -16,19 +15,16 @@ export default function ReservarCita() {
   const { servicioId } = useParams();
   const navigate = useNavigate();
 
-  // Estados de datos
   const [servicio, setServicio] = useState(null);
   const [trabajadores, setTrabajadores] = useState([]);
   const [horasDisponibles, setHorasDisponibles] = useState([]);
   const [diasNoDisponibles, setDiasNoDisponibles] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  // Estados de selección del usuario
   const [selectedTrabajador, setSelectedTrabajador] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
 
-  // Estados de UI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingHoras, setLoadingHoras] = useState(false);
@@ -58,24 +54,20 @@ export default function ReservarCita() {
     fetchInitialData();
   }, [servicioId]);
 
-  // Efecto para cargar los días no disponibles cuando cambia el trabajador o el mes
   useEffect(() => {
     if (selectedTrabajador) {
       const fetchDiasNoDisponibles = async () => {
         setLoadingDias(true);
-        // Usamos el mes visible en el calendario para la petición
         const mesParaConsultar = currentMonth;
         try {
           const params = new URLSearchParams({
             trabajadorId: selectedTrabajador.id,
             servicioId: servicioId,
             anio: mesParaConsultar.getFullYear(),
-            mes: mesParaConsultar.getMonth() + 1, // getMonth() es 0-indexado
+            mes: mesParaConsultar.getMonth() + 1,
           });
           const res = await apiClient.get(`/citas/dias-no-disponibles?${params.toString()}`);
-          // Normalizamos las fechas a objetos Date en UTC para evitar problemas de zona horaria.
           const disabledDates = res.data.map(dateStr => {
-            // new Date('YYYY-MM-DD') crea la fecha a medianoche en UTC, es más seguro.
             return new Date(dateStr + 'T00:00:00');
           });
           setDiasNoDisponibles(disabledDates);
@@ -89,7 +81,6 @@ export default function ReservarCita() {
     }
   }, [selectedTrabajador, servicioId, currentMonth]);
 
-  // Efecto para cargar las horas disponibles cuando se selecciona trabajador y fecha
   useEffect(() => {
     if (selectedTrabajador && selectedDate) {
       const fetchHorasDisponibles = async () => {
@@ -118,8 +109,8 @@ export default function ReservarCita() {
 
   const handleSelectTrabajador = (trabajador) => {
     setSelectedTrabajador(trabajador);
-    setSelectedDate(null); // Reseteamos la fecha al cambiar de trabajador
-    setSelectedTime(null); // Reseteamos la hora
+    setSelectedDate(null);
+    setSelectedTime(null);
     setHorasDisponibles([]);
   };
 
@@ -148,7 +139,7 @@ export default function ReservarCita() {
       await apiClient.post('/citas', payload);
 
       alert("¡Cita reservada con éxito!");
-      navigate('/dashboard'); // Redirigir al panel del cliente
+      navigate('/dashboard');
     } catch (err) {
       console.error("Error al confirmar la reserva:", err);
       alert(err.response?.data?.message || "No se pudo confirmar la reserva. El horario podría no estar ya disponible.");
@@ -243,8 +234,8 @@ export default function ReservarCita() {
                     selected={selectedDate}
                     onSelect={setSelectedDate}
                     disabled={[
-                      ...diasNoDisponibles, // Días ocupados desde la API
-                      { before: new Date() } // Todos los días antes de hoy
+                      ...diasNoDisponibles,
+                      { before: new Date() }
                     ]}
                     month={currentMonth}
                     onMonthChange={setCurrentMonth}

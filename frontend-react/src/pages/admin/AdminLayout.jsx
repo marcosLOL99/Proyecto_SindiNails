@@ -24,7 +24,7 @@ const AdminLayout = () => {
               <li key={link.to}>
                 <NavLink
                   to={link.to}
-                  end={link.to === '/admin'} // `end` prop ensures only exact match for dashboard
+                  end={link.to === '/admin'}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-cyan-50 hover:text-cyan-600 transition-colors ${
                       isActive ? 'bg-cyan-100 text-cyan-700 font-semibold border-r-4 border-cyan-500' : ''
@@ -43,7 +43,6 @@ const AdminLayout = () => {
       {/* Main Content */}
       <main className="flex-1 p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
-          {/* Outlet renderizará el componente de la ruta hija */}
           <Outlet />
         </div>
       </main>

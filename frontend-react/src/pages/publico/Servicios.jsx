@@ -18,7 +18,6 @@ export default function Servicios() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        // Hacemos las dos llamadas a la API en paralelo para más eficiencia
         const [serviciosRes, tiposRes] = await Promise.all([
           apiClient.get('/servicios'),
           apiClient.get('/tiposervicios')

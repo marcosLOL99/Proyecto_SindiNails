@@ -49,7 +49,6 @@ export default function Dashboard() {
   }
   
   const ahora = new Date();
-  // Filtramos las próximas citas que no estén canceladas
   const proximasCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) > ahora && cita.estado !== 'CANCELADA');
   const historialCitas = citas.filter(cita => parseISO(cita.fechaHoraInicio) <= ahora || cita.estado === 'CANCELADA');
 
@@ -60,7 +59,6 @@ export default function Dashboard() {
     const handleCancelarCita = async () => {
       try {
         await apiClient.patch(`/citas/${cita.id}/cancelar`);
-        // Recargar las citas para actualizar la UI
         fetchCitas();
       } catch (error) {
         console.error("Error al cancelar la cita:", error);

@@ -26,7 +26,6 @@ const TrabajadorForm = ({ trabajador, onSave, onCancel }) => {
     },
   });
 
-  // useEffect para resetear el formulario si el trabajador cambia (para edición)
   useEffect(() => {
     if (trabajador) {
       form.reset({
@@ -46,7 +45,6 @@ const TrabajadorForm = ({ trabajador, onSave, onCancel }) => {
   const onSubmit = async (values) => {
     try {
       if (trabajador) {
-        // El payload se envía completo desde 'values'
         await apiClient.put(`/admin/trabajadores/${trabajador.id}`, values); 
         toast.success('Trabajador actualizado con éxito');
       } else {

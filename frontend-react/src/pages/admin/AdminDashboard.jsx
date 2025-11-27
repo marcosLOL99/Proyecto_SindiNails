@@ -12,27 +12,22 @@ const AdminDashboard = () => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        // Hacemos todas las llamadas a la API en paralelo para mayor eficiencia
         const [clientesRes, trabajadoresRes, citasRes, chartDataRes] = await Promise.all([
           apiClient.get('/admin/clientes'),
           apiClient.get('/admin/trabajadores'),
           apiClient.get('/admin/citas'),
-          apiClient.get('/admin/stats/citas-semanales') // Nuevo endpoint para el gráfico
+          apiClient.get('/admin/stats/citas-semanales')
         ]);
 
         const ahora = new Date();
         const hoy = new Date().toISOString().split('T')[0];
 
-        // 1. Filtrar citas para hoy
         const citasHoy = citasRes.data.filter(c => c && c.fechaHoraInicio && c.fechaHoraInicio.startsWith(hoy));
 
-        // 2. Ordenar las citas de hoy por hora
         citasHoy.sort((a, b) => new Date(a.fechaHoraInicio) - new Date(b.fechaHoraInicio));
 
-        // 3. Filtrar solo las citas que aún no han pasado
         const proximasCitasHoy = citasHoy.filter(c => new Date(c.fechaHoraInicio) > ahora);
 
-        // Función para formatear la hora
         const formatTime = (dateString) => new Date(dateString).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
         setStats({
@@ -40,12 +35,11 @@ const AdminDashboard = () => {
           totalTrabajadores: trabajadoresRes.data.filter(t => t.activo).length,
           citasHoy: citasHoy.length,
           proximasCitas: proximasCitasHoy.slice(0, 5).map(c => ({ ...c, horaFormateada: formatTime(c.fechaHoraInicio) })), // Las próximas 5 de hoy
-          chartData: chartDataRes.data, // Usamos los datos reales del backend
+          chartData: chartDataRes.data,
         });
 
       } catch (error) {
         console.error("Error al cargar los datos del dashboard:", error);
-        // Aquí podrías poner valores por defecto en caso de error
         setStats({ totalClientes: 0, totalTrabajadores: 0, citasHoy: 0, proximasCitas: [], chartData: [] });
       } finally {
         setLoading(false);

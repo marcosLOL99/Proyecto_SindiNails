@@ -9,7 +9,6 @@ import HeroCarousel from '../../components/HeroCarousel';
 import Testimonios from '../../components/Testimonios';
 import InstagramFeed from '../../components/InstagramFeed';
 
-// Importamos las imágenes de los servicios
 import imgServicio1 from '../../assets/imgServicio/servicio1.jpeg';
 import imgServicio2 from '../../assets/imgServicio/servicio2.jpeg';
 import imgServicio3 from '../../assets/imgServicio/servicio3.jpeg';
@@ -52,9 +51,7 @@ export default function Home() {
             viewport={{ once: true, amount: 0.5 }}
             transition={{ duration: 0.5 }}
           >
-            {/* La tarjeta ahora es un contenedor flex que organiza su contenido verticalmente */}
             <Card className="bg-white border-gray-200 flex flex-col shadow-lg hover:shadow-xl transition-shadow duration-300 h-full overflow-hidden">
-              {/* Contenedor de la imagen */}
               <div className="w-full h-40 overflow-hidden">
                 <img
                   src={servicioImages[index]}
@@ -62,7 +59,6 @@ export default function Home() {
                   className="w-full h-full object-cover transition-transform duration-300 hover:scale-110"
                 />
               </div>
-              {/* El contenido de texto ahora crece para empujar el footer hacia abajo */}
               <CardContent className="p-4 flex-grow flex flex-col">
                 <CardTitle className="text-gray-900 text-lg mb-2">{service.nombre}</CardTitle>
                 <CardDescription className="text-gray-600 text-sm flex-grow">{service.descripcion}</CardDescription>
@@ -80,13 +76,10 @@ export default function Home() {
 
   return (
     <div className="bg-white text-gray-800">
-      {/* --- Hero Section --- */}
       <section className="relative min-h-screen flex items-center justify-center text-center px-4 overflow-hidden">
-        {/* El carrusel como fondo absoluto */}
         <div className="absolute inset-0 z-0">
           <HeroCarousel />
         </div>
-        {/* Un overlay oscuro para mejorar la legibilidad del texto */}
         <div className="absolute inset-0 bg-black/50 z-0"></div>
         <motion.div
           className="relative z-10"
@@ -116,7 +109,6 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* --- Features Section --- */}
       <motion.section
         className="py-20 bg-gray-50 px-4"
         initial={{ opacity: 0, y: 50 }}
@@ -143,7 +135,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* --- Servicios Destacados Section --- */}
       <motion.section
         className="py-20 bg-white px-4"
         initial={{ opacity: 0, y: 50 }}
@@ -162,7 +153,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* --- Testimonials Section --- */}
       <motion.section
         className="py-20 bg-gray-50 px-4"
         initial={{ opacity: 0, y: 50 }}
@@ -177,7 +167,6 @@ export default function Home() {
         </div>
       </motion.section>
 
-      {/* --- Instagram Feed Section --- */}
       <motion.section
         className="py-20 bg-white px-4"
         initial={{ opacity: 0, y: 50 }}
@@ -195,7 +184,6 @@ export default function Home() {
       </motion.section>
 
 
-      {/* --- CTA Section --- */}
       <motion.section
         className="py-20 bg-gray-50 text-center px-4"
         initial={{ opacity: 0, y: 50 }}

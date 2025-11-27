@@ -33,7 +33,6 @@ const AdminGestionTrabajadores = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Estado para el filtro
   const [nombreFiltro, setNombreFiltro] = useState('');
 
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -68,7 +67,6 @@ const AdminGestionTrabajadores = () => {
     fetchData();
   }, []);
 
-  // useEffect para aplicar el filtro por nombre
   useEffect(() => {
     let result = trabajadores;
     if (nombreFiltro) {
@@ -85,16 +83,14 @@ const AdminGestionTrabajadores = () => {
 
   const handleAusenciaSave = () => {
     setIsAusenciaFormOpen(false);
-    // Si estábamos viendo las ausencias de un trabajador, las recargamos
     if (selectedTrabajadorAusencias) {
       handleViewAusencias(selectedTrabajadorAusencias);
     }
-    // También recargamos los festivos globales
     apiClient.get('/admin/bloqueos/globales').then(res => setFestivosGlobales(res.data));
   };
   const handleFestivoSave = () => {
     setIsFestivoFormOpen(false);
-    fetchData(); // Recargamos todos los datos
+    fetchData();
   };
 
   const handleViewAusencias = async (trabajador) => {
@@ -134,7 +130,7 @@ const AdminGestionTrabajadores = () => {
     try {
       await apiClient.delete(`/admin/bloqueos/${id}`);
       toast.success('El periodo de ausencia ha sido eliminado.');
-      fetchData(); // Recargamos todo para mantener la consistencia
+      fetchData();
       if (selectedTrabajadorAusencias) {
         handleViewAusencias(selectedTrabajadorAusencias);
       }

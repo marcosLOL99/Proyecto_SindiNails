@@ -33,7 +33,6 @@ const AdminGestionServicios = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Estados para los filtros
   const [nombreFiltro, setNombreFiltro] = useState('');
   const [tipoServicioFiltro, setTipoServicioFiltro] = useState('');
 
@@ -64,7 +63,6 @@ const AdminGestionServicios = () => {
     fetchData();
   }, []);
 
-  // useEffect para aplicar los filtros
   useEffect(() => {
     let result = servicios;
     if (nombreFiltro) {

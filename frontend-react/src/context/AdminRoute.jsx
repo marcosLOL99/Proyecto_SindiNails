@@ -5,7 +5,7 @@ const AdminRoute = ({ children }) => {
   const { isAuthenticated, isAdmin, loading } = useAuth();
 
   if (loading) {
-    return <div>Cargando...</div>; // O un spinner de carga
+    return <div>Cargando...</div>;
   }
 
   return isAuthenticated && isAdmin ? children : <Navigate to="/" />;

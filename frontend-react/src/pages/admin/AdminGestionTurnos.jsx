@@ -27,9 +27,8 @@ export default function AdminGestionTurnos() {
   const [turnosPorSemana, setTurnosPorSemana] = useState({});
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [turnoActual, setTurnoActual] = useState(null); // Para editar
+  const [turnoActual, setTurnoActual] = useState(null);
 
-  // Cargar la lista de trabajadores al montar el componente
   useEffect(() => {
     apiClient.get('/admin/trabajadores')
       .then(response => {
@@ -41,13 +40,11 @@ export default function AdminGestionTurnos() {
       .catch(error => console.error("Error al cargar trabajadores:", error));
   }, []);
 
-  // Cargar los turnos cuando se selecciona un trabajador
   useEffect(() => {
     if (trabajadorSeleccionado) {
       setLoading(true);
       apiClient.get(`/admin/trabajadores/${trabajadorSeleccionado}/turnos`)
         .then(response => {
-          // Agrupar turnos por semana
           const grouped = response.data.reduce((acc, turno) => {
             const fecha = new Date(turno.fecha);
             const inicioSemana = startOfWeek(fecha, { weekStartsOn: 1 });
@@ -83,7 +80,6 @@ export default function AdminGestionTurnos() {
     apiClient.post('/admin/turnos/batch', payload)
       .then(() => {
         setIsDialogOpen(false);
-        // Recargar turnos
         if (trabajadorSeleccionado) {
           apiClient.get(`/admin/trabajadores/${trabajadorSeleccionado}/turnos`)
             .then(response => {
@@ -107,7 +103,6 @@ export default function AdminGestionTurnos() {
   const handleEliminarTurno = (id) => {
     apiClient.delete(`/admin/turnos/${id}`)
       .then(() => {
-        // Optimistic update: remove the turn from the state
         const newTurnosPorSemana = { ...turnosPorSemana };
         for (const weekKey in newTurnosPorSemana) {
           newTurnosPorSemana[weekKey] = newTurnosPorSemana[weekKey].filter(t => t.id !== id);
@@ -125,7 +120,7 @@ export default function AdminGestionTurnos() {
 
   const abrirDialogoSemana = (fecha) => {
     setSemanaSeleccionada(fecha);
-    setHorariosSemana(initialHorarioState); // Resetear al abrir
+    setHorariosSemana(initialHorarioState);
     setIsDialogOpen(true);
   }
 
@@ -133,11 +128,8 @@ export default function AdminGestionTurnos() {
     const newHorarios = [...horariosSemana];
     newHorarios[index] = { ...newHorarios[index], [field]: value };
 
-    // Si se está editando el Lunes (índice 0) y no es el checkbox de "activo",
-    // replicar el cambio en los demás días que estén activos.
     if (index === 0 && field !== 'activo') {
       for (let i = 1; i < newHorarios.length; i++) {
-        // Solo replicar si el día está marcado como activo
         if (newHorarios[i].activo) {
           newHorarios[i] = { ...newHorarios[i], [field]: value };
         }

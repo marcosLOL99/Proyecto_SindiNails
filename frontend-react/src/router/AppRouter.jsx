@@ -28,7 +28,6 @@ const router = createBrowserRouter([
       { path: 'contacto', element: <Contacto /> },
       { path: 'login', element: <Login /> },
       { path: 'registro', element: <Registro /> },
-      // Rutas Protegidas
       {
         element: <ProtectedRoute />,
         children: [
@@ -36,7 +35,6 @@ const router = createBrowserRouter([
           { path: 'reservar/:servicioId', element: <ReservarCita /> },
         ],
       },
-      // Rutas de Administrador
       {
         path: 'admin',
         element: <AdminRoute><AdminLayout /></AdminRoute>,
