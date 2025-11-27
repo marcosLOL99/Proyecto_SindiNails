@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Calendar, Hammer, Users, UserCircle } from 'lucide-react';
+import { LayoutDashboard, Calendar, Hammer, Users, UserCircle, Clock } from 'lucide-react';
 
 const navLinks = [
   { to: '/admin', text: 'Dashboard', icon: <LayoutDashboard size={20} /> },
   { to: '/admin/citas', text: 'Gestionar Citas', icon: <Calendar size={20} /> },
   { to: '/admin/servicios', text: 'Gestionar Servicios', icon: <Hammer size={20} /> },
   { to: '/admin/trabajadores', text: 'Gestionar Trabajadores', icon: <Users size={20} /> },
+  { to: '/admin/turnos', text: 'Gestionar Turnos', icon: <Clock size={20} /> },
   { to: '/admin/clientes', text: 'Gestionar Clientes', icon: <UserCircle size={20} /> },
 ];
 

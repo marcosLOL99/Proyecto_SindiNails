@@ -34,6 +34,6 @@ public class PeriodoNoDisponible {
     private TipoBloqueo tipo;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "trabajador_id") // Es nullable por defecto, lo que permite bloqueos globales sin trabajador.
+    @JoinColumn(name = "trabajador_id")
     private Trabajador trabajador;
 }

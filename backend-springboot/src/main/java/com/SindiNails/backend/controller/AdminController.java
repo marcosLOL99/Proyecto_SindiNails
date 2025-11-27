@@ -1,16 +1,10 @@
 package com.SindiNails.backend.controller;
 
-import com.SindiNails.backend.dto.BloqueoDto;
-import com.SindiNails.backend.dto.CitaDto;
-import com.SindiNails.backend.dto.CitasPorDiaDto;
-import com.SindiNails.backend.dto.AdminCreateCitaDto;
-import com.SindiNails.backend.dto.UsuarioDto;
-import com.SindiNails.backend.dto.CreateUpdateServicioDto;
-import com.SindiNails.backend.dto.CreateUpdateTrabajadorDto;
-import com.SindiNails.backend.dto.CreateCitaDto;
+import com.SindiNails.backend.dto.*;
 import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.service.CitaService;
+import com.SindiNails.backend.service.TurnoService;
 import com.SindiNails.backend.service.UsuarioService;
 import com.SindiNails.backend.service.ServicioService;
 import com.SindiNails.backend.service.PeriodoNoDisponibleService;
@@ -33,6 +27,7 @@ public class AdminController {
     private final TrabajadorService trabajadorService;
     private final UsuarioService usuarioService;
     private final PeriodoNoDisponibleService periodoNoDisponibleService;
+    private final TurnoService turnoService;
 
     // --- Endpoints para Citas ---
     @GetMapping("/citas")
@@ -108,6 +103,32 @@ public class AdminController {
     @DeleteMapping("/trabajadores/{id}")
     public ResponseEntity<Void> deleteTrabajador(@PathVariable Long id) {
         trabajadorService.deleteTrabajador(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Endpoints para Turnos ---
+
+    @GetMapping("/trabajadores/{trabajadorId}/turnos")
+    public ResponseEntity<List<TurnoDto>> getTurnosPorTrabajador(@PathVariable Long trabajadorId) {
+        List<TurnoDto> turnos = turnoService.getTurnosByTrabajador(trabajadorId);
+        return ResponseEntity.ok(turnos);
+    }
+
+    @PostMapping("/turnos")
+    public ResponseEntity<TurnoDto> createTurno(@Valid @RequestBody CreateUpdateTurnoDto turnoDto) {
+        TurnoDto nuevoTurno = turnoService.createTurno(turnoDto);
+        return new ResponseEntity<>(nuevoTurno, HttpStatus.CREATED);
+    }
+
+    @PutMapping("/turnos/{id}")
+    public ResponseEntity<TurnoDto> updateTurno(@PathVariable Long id, @Valid @RequestBody CreateUpdateTurnoDto turnoDto) {
+        TurnoDto turnoActualizado = turnoService.updateTurno(id, turnoDto);
+        return ResponseEntity.ok(turnoActualizado);
+    }
+
+    @DeleteMapping("/turnos/{id}")
+    public ResponseEntity<Void> deleteTurno(@PathVariable Long id) {
+        turnoService.deleteTurno(id);
         return ResponseEntity.noContent().build();
     }
 

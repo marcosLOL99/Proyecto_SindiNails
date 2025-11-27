@@ -1,17 +1,14 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { apiClient } from '../../router/api';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { motion } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Loader2, Euro, Clock, PlusCircle } from 'lucide-react';
 
 export default function Servicios() {
   const [servicios, setServicios] = useState([]);
   const [tiposServicios, setTiposServicios] = useState([]);
-  const [filteredServicios, setFilteredServicios] = useState([]);
-  const [selectedType, setSelectedType] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { isAuthenticated } = useAuth();
@@ -23,12 +20,10 @@ export default function Servicios() {
         setLoading(true);
         // Hacemos las dos llamadas a la API en paralelo para más eficiencia
         const [serviciosRes, tiposRes] = await Promise.all([
-          axios.get('http://localhost:8080/api/servicios'),
-          axios.get('http://localhost:8080/api/tiposervicios')
+          apiClient.get('/servicios'),
+          apiClient.get('/tiposervicios')
         ]);
-
         setServicios(serviciosRes.data);
-        setFilteredServicios(serviciosRes.data); // Inicialmente mostramos todos
         setTiposServicios(tiposRes.data);
         setError(null);
       } catch (error) {
@@ -42,22 +37,14 @@ export default function Servicios() {
     fetchData();
   }, []);
 
-  // Función para manejar el filtrado
-  const handleFilter = (tipoId) => {
-    setSelectedType(tipoId);
-    if (tipoId === 'all') {
-      setFilteredServicios(servicios);
-    } else {
-      setFilteredServicios(servicios.filter(s => s.tipoServicio.id === tipoId));
-    }
+  const handleScrollToType = (tipoId) => {
+    document.getElementById(`tipo-${tipoId}`).scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleBookingClick = (serviceId) => {
     if (isAuthenticated) {
-      // Si está autenticado, lo llevamos a la página de reserva (que crearemos después)
       navigate(`/reservar/${serviceId}`);
     } else {
-      // Si no, lo mandamos a iniciar sesión
       navigate('/login');
     }
   };
@@ -76,47 +63,44 @@ export default function Servicios() {
     }
 
     return (
-      <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        <AnimatePresence>
-          {filteredServicios.map((service, index) => (
+      <div className="space-y-12">
+        {tiposServicios.map(tipo => {
+          const serviciosDeEsteTipo = servicios.filter(s => s.tipoServicio.id === tipo.id);
+          if (serviciosDeEsteTipo.length === 0) return null;
+
+          return (
             <motion.div
-              layout
-              key={service.id}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
+              key={tipo.id}
+              id={`tipo-${tipo.id}`}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.2 }}
+              transition={{ duration: 0.5 }}
             >
-              <Card className="bg-white border-gray-200 flex flex-col shadow-lg hover:shadow-cyan-100 transition-all duration-300 h-full">
-                <CardHeader>
-                  <CardTitle className="text-gray-900">{service.nombre}</CardTitle>
-                  <CardDescription className="text-gray-600 pt-2 min-h-[60px]">{service.descripcion}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <div className="w-full h-40 bg-gray-100 rounded-md flex items-center justify-center">
-                    <span className="text-gray-400 text-sm">Imagen del Servicio</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex-col items-start gap-4">
-                  <div className="w-full flex justify-between items-center text-gray-800">
-                    <div className="flex items-center gap-2 text-cyan-600 font-bold text-lg">
-                      <Euro size={20} />
-                      <span>{service.precio}</span>
+              <h2 className="text-3xl font-bold text-gray-900 mb-6 border-b-2 border-cyan-200 pb-2">{tipo.nombre}</h2>
+              <div className="divide-y divide-gray-200">
+                {serviciosDeEsteTipo.map(service => (
+                  <div key={service.id} className="flex flex-col md:flex-row justify-between items-start md:items-center py-6">
+                    <div className="md:w-2/3 mb-4 md:mb-0">
+                      <h3 className="text-xl font-semibold text-gray-800">{service.nombre}</h3>
+                      <p className="text-gray-600 mt-1">{service.descripcion}</p>
                     </div>
-                    <div className="flex items-center gap-2 text-gray-500 text-sm">
-                      <Clock size={16} />
-                      <span>{service.duracionEnMinutos} min</span>
+                    <div className="w-full md:w-1/3 flex flex-row md:flex-col items-center md:items-end gap-4 md:gap-2">
+                      <div className="flex items-center gap-4 text-gray-700">
+                        <span className="font-bold text-lg text-cyan-600">{service.precio}€</span>
+                        <span className="text-sm text-gray-500">{service.duracionEnMinutos} min.</span>
+                      </div>
+                      <Button onClick={() => handleBookingClick(service.id)} size="sm" className="bg-cyan-600 hover:bg-cyan-700 text-white whitespace-nowrap">
+                        Reservar
+                      </Button>
                     </div>
                   </div>
-                  <Button onClick={() => handleBookingClick(service.id)} className="w-full bg-cyan-600 hover:bg-cyan-700">
-                    <PlusCircle className="mr-2 h-4 w-4" /> Reservar ahora
-                  </Button>
-                </CardFooter>
-              </Card>
+                ))}
+              </div>
             </motion.div>
-          ))}
-        </AnimatePresence>
-      </motion.div>
+          );
+        })}
+      </div>
     );
   };
 
@@ -134,10 +118,9 @@ export default function Servicios() {
 
         {/* Filtros */}
         {!loading && !error && (
-          <div className="flex flex-wrap justify-center gap-2 mb-12">
-            <Button onClick={() => handleFilter('all')} variant={selectedType === 'all' ? 'default' : 'outline'} className={selectedType === 'all' ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white'}>Todos</Button>
+          <div className="flex flex-wrap justify-center gap-3 mb-16 sticky top-0 bg-gray-50/80 backdrop-blur-sm py-4 z-10">
             {tiposServicios.map(tipo => (
-              <Button key={tipo.id} onClick={() => handleFilter(tipo.id)} variant={selectedType === tipo.id ? 'default' : 'outline'} className={selectedType === tipo.id ? 'bg-cyan-600 hover:bg-cyan-700' : 'border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white'}>
+              <Button key={tipo.id} onClick={() => handleScrollToType(tipo.id)} variant="outline" className="border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white transition-colors">
                 {tipo.nombre}
               </Button>
             ))}

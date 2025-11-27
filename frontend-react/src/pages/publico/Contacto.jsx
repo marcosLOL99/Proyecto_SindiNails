@@ -1,8 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { MapPin, Phone, Mail, Clock, Send } from "lucide-react";
+import { MapPin, Phone, Mail, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Contacto() {
@@ -40,28 +38,29 @@ export default function Contacto() {
                   <MapPin className="text-cyan-600 mt-1 flex-shrink-0" size={20} />
                   <div>
                     <h3 className="font-semibold text-gray-800">Dirección</h3>
-                    <p>Calle de la Belleza, 123, 28080 Madrid, España</p>
+                    <p>Av. Elduayen, 16, 36380 Gondomar, Pontevedra</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <Phone className="text-cyan-600 mt-1 flex-shrink-0" size={20} />
                   <div>
                     <h3 className="font-semibold text-gray-800">Teléfono</h3>
-                    <p>+34 912 345 678</p>
+                    <p>+34 674 13 22 33</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <Mail className="text-cyan-600 mt-1 flex-shrink-0" size={20} />
                   <div>
                     <h3 className="font-semibold text-gray-800">Email</h3>
-                    <p>hola@sindinails.com</p>
+                    <p>Sindinails2022@gmail.com</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4">
                   <Clock className="text-cyan-600 mt-1 flex-shrink-0" size={20} />
                   <div>
                     <h3 className="font-semibold text-gray-800">Horario</h3>
-                    <p>Lunes a Viernes: 09:00 - 14:00 / 15:00 - 18:00</p>
+                    <p>Lunes a Jueves: 09:00 - 14:00 / 15:00 - 18:00</p>
+                    <p>Viernes: 09:00 - 14:00 / 15:00 - 19:00</p>
                     <p>Sábados: 10:00 - 14:00</p>
                   </div>
                 </div>
@@ -76,24 +75,17 @@ export default function Contacto() {
             viewport={{ once: true, amount: 0.5 }}
             transition={{ duration: 0.5, delay: 0.4 }}
           >
-            <Card className="bg-white border-gray-200 shadow-lg">
-              <CardHeader>
-                <CardTitle className="text-2xl text-gray-900">Envíanos un Mensaje</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input id="nombre" placeholder="Tu nombre" className="border-gray-300 focus:border-cyan-500 focus:ring-cyan-500" />
-                    <Input id="email" type="email" placeholder="Tu email" className="border-gray-300 focus:border-cyan-500 focus:ring-cyan-500" />
-                  </div>
-                  <Input id="asunto" placeholder="Asunto" className="border-gray-300 focus:border-cyan-500 focus:ring-cyan-500" />
-                  <Textarea id="mensaje" placeholder="Tu mensaje..." rows={5} className="border-gray-300 focus:border-cyan-500 focus:ring-cyan-500" />
-                  <Button type="submit" className="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold">
-                    <Send className="mr-2 h-4 w-4" /> Enviar Mensaje
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+            <div className="w-full h-full min-h-[450px] lg:min-h-full rounded-lg overflow-hidden shadow-lg border border-gray-200">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d680.2150885159056!2d-8.764464530385565!3d42.11169479820107!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0xd258de6b9d72f49%3A0x805086b7d402a903!2sSindi%20Nails%20Beauty%20Studio!5e1!3m2!1ses!2ses!4v1764246718792!5m2!1ses!2ses"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              ></iframe>
+            </div>
           </motion.div>
         </div>
       </div>

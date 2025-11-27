@@ -16,6 +16,7 @@ import AdminGestionCitas from '../pages/admin/AdminGestionCitas.jsx';
 import AdminGestionServicios from '../pages/admin/AdminGestionServicios.jsx';
 import AdminGestionTrabajadores from '../pages/admin/AdminGestionTrabajadores.jsx';
 import AdminGestionClientes from '../pages/admin/AdminGestionClientes.jsx';
+import AdminGestionTurnos from '../pages/admin/AdminGestionTurnos.jsx';
 
 const router = createBrowserRouter([
   {
@@ -45,6 +46,7 @@ const router = createBrowserRouter([
           { path: 'servicios', element: <AdminGestionServicios /> },
           { path: 'trabajadores', element: <AdminGestionTrabajadores /> },
           { path: 'clientes', element: <AdminGestionClientes /> },
+          { path: 'turnos', element: <AdminGestionTurnos /> },
         ],
       },
     ],

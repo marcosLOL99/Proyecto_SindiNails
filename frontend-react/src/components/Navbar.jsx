@@ -87,7 +87,7 @@ export default function Navbar() {
                 <Button asChild variant="ghost" className="text-cyan-600 hover:bg-cyan-100 hover:text-cyan-700">
                   <Link to="/login"><LogIn className="mr-2 h-4 w-4" />Iniciar Sesión</Link>
                 </Button>
-                <Button asChild className="bg-cyan-600 hover:bg-cyan-700">
+                <Button asChild className="bg-cyan-600 hover:bg-cyan-700 text-white">
                   <Link to="/registro"><UserPlus className="mr-2 h-4 w-4" />Registrarse</Link>
                 </Button>
               </div>

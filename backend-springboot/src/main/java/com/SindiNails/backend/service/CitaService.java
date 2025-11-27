@@ -1,29 +1,21 @@
 package com.SindiNails.backend.service;
 
-import com.SindiNails.backend.dto.CitaDto;
-import com.SindiNails.backend.dto.CitasPorDiaDto;
-import com.SindiNails.backend.dto.AdminCreateCitaDto;
-import com.SindiNails.backend.dto.CreateCitaDto;
-import com.SindiNails.backend.dto.UsuarioResumenDto;
-import com.SindiNails.backend.dto.ServicioResumenDto;
-import com.SindiNails.backend.dto.TrabajadorDto;
+
+import com.SindiNails.backend.dto.*;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
-import com.SindiNails.backend.model.Cita;
-import com.SindiNails.backend.model.EstadoCita;
-import com.SindiNails.backend.model.PeriodoNoDisponible;
-import com.SindiNails.backend.model.ServicioLocal;
-import com.SindiNails.backend.model.TipoBloqueo;
-import com.SindiNails.backend.model.Trabajador;
-import com.SindiNails.backend.model.Usuario;
+import com.SindiNails.backend.model.*;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioServicios;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioUsuario;
+import com.SindiNails.backend.repository.RepositorioTurno;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.LocalDateTime;
@@ -46,6 +38,8 @@ public class CitaService {
     private final RepositorioServicios repositorioServicios;
     private final RepositorioUsuario repositorioUsuario;
     private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
+    private final RepositorioTurno turnoRepository;
+    private final Environment env;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -141,68 +135,128 @@ public class CitaService {
                 .collect(Collectors.toList());
     }
 
+    private DiaSemana mapToDiaSemana(DayOfWeek dayOfWeek) {
+        switch (dayOfWeek) {
+            case MONDAY:
+                return DiaSemana.LUNES;
+            case TUESDAY:
+                return DiaSemana.MARTES;
+            case WEDNESDAY:
+                return DiaSemana.MIERCOLES;
+            case THURSDAY:
+                return DiaSemana.JUEVES;
+            case FRIDAY:
+                return DiaSemana.VIERNES;
+            case SATURDAY:
+                return DiaSemana.SABADO;
+            case SUNDAY:
+                return DiaSemana.DOMINGO;
+            default:
+                throw new IllegalArgumentException("Día de la semana no válido: " + dayOfWeek);
+        }
+    }
+
+    private List<LocalTime[]> parseTimeIntervals(String intervalsString) {
+        List<LocalTime[]> intervals = new ArrayList<>();
+        if (intervalsString == null || intervalsString.trim().isEmpty()) {
+            return intervals;
+        }
+        for (String part : intervalsString.split(",")) {
+            String[] times = part.split("-");
+            if (times.length == 2) {
+                intervals.add(new LocalTime[]{LocalTime.parse(times[0]), LocalTime.parse(times[1])});
+            }
+        }
+        return intervals;
+    }
+
     public List<String> getHorariosDisponibles(Long trabajadorId, Long servicioId, LocalDate fecha) {
-        // Validar que el trabajador y el servicio existen
         repositorioTrabajador.findById(trabajadorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId));
         ServicioLocal servicio = repositorioServicios.findById(servicioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + servicioId));
 
-        // Definir horario laboral (se puede hacer más complejo en el futuro)
-        final LocalTime HORA_INICIO_JORNADA = LocalTime.of(9, 0);
-        final LocalTime HORA_FIN_JORNADA = LocalTime.of(20, 0);
         final int DURACION_SERVICIO = servicio.getDuracionEnMinutos();
         final int INTERVALO_MINUTOS = 15; // Comprobamos la disponibilidad cada 15 minutos
 
-        // Obtener las citas ya existentes para ese trabajador en esa fecha
+        // 1. Obtener los intervalos de trabajo REALES del día
+        List<LocalTime[]> workingIntervals = getWorkingIntervalsForDay(trabajadorId, fecha);
+        if (workingIntervals.isEmpty()) {
+            return new ArrayList<>(); // Si no hay horario de trabajo, no hay disponibilidad
+        }
+
+        // 2. Obtener citas y bloqueos existentes
         LocalDateTime inicioDelDia = fecha.atStartOfDay();
         LocalDateTime finDelDia = fecha.atTime(LocalTime.MAX);
         List<Cita> citasDelDia = repositorioCita.findCitasSolapadas(trabajadorId, inicioDelDia, finDelDia);
-
-        // Obtener los periodos de no disponibilidad (bloqueos) para ese día
         List<PeriodoNoDisponible> bloqueosDelDia = new ArrayList<>();
-        // Bloqueos globales (festivos)
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, finDelDia, inicioDelDia));
-        // Bloqueos específicos del trabajador
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajadorId, finDelDia, inicioDelDia));
 
+        // 3. Generar y filtrar slots
         List<String> horariosDisponibles = new ArrayList<>();
-        LocalTime horaActual = HORA_INICIO_JORNADA;
+        for (LocalTime[] interval : workingIntervals) {
+            LocalTime horaActual = interval[0];
+            LocalTime finIntervalo = interval[1];
 
-        while (horaActual.plusMinutes(DURACION_SERVICIO).isBefore(HORA_FIN_JORNADA)
-                || horaActual.plusMinutes(DURACION_SERVICIO).equals(HORA_FIN_JORNADA)) {
-            LocalDateTime posibleInicio = fecha.atTime(horaActual);
-            LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
+            while (!horaActual.plusMinutes(DURACION_SERVICIO).isAfter(finIntervalo)) {
+                LocalDateTime posibleInicio = fecha.atTime(horaActual);
+                LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
 
-            boolean estaSolapado = false;
-            for (Cita citaExistente : citasDelDia) {
-                // Comprobamos si el nuevo hueco se solapa con una cita existente
-                if (posibleInicio.isBefore(citaExistente.getFechaHoraFin())
-                        && posibleFin.isAfter(citaExistente.getFechaHoraInicio())) {
-                    estaSolapado = true;
-                    break;
+                boolean estaSolapado = isOverlapping(posibleInicio, posibleFin, citasDelDia, bloqueosDelDia);
+
+                if (!estaSolapado) {
+                    horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
                 }
-            }
 
-            // Comprobamos si el nuevo hueco se solapa con un periodo de no disponibilidad
-            if (!estaSolapado) {
-                for (PeriodoNoDisponible bloqueo : bloqueosDelDia) {
-                    if (posibleInicio.isBefore(bloqueo.getFechaHoraFin()) && posibleFin.isAfter(bloqueo.getFechaHoraInicio())) {
-                        estaSolapado = true;
-                        break;
-                    }
-                }
+                horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
             }
-
-            if (!estaSolapado) {
-                // Si no hay solapamiento, añadimos la hora a la lista de disponibles
-                horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
-            }
-
-            // Avanzamos al siguiente intervalo
-            horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
         }
         return horariosDisponibles;
+    }
+
+    private List<LocalTime[]> getWorkingIntervalsForDay(Long trabajadorId, LocalDate fecha) {
+        // Obtener el día de la semana
+        DayOfWeek dayOfWeek = fecha.getDayOfWeek();
+        DiaSemana diaSemana = mapToDiaSemana(dayOfWeek);
+
+        // Obtener horario del negocio desde application.properties
+        String businessHoursStr = env.getProperty("horario.negocio." + diaSemana.name().toLowerCase());
+        List<LocalTime[]> businessIntervals = parseTimeIntervals(businessHoursStr);
+
+        // Obtener turnos del trabajador desde la BD
+        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndDiaDeLaSemana(trabajadorId, diaSemana);
+        List<LocalTime[]> workerIntervals = turnos.stream()
+                .map(t -> new LocalTime[]{t.getHoraInicio(), t.getHoraFin()})
+                .collect(Collectors.toList());
+
+        // Calcular la intersección entre el horario del negocio y los turnos del trabajador
+        List<LocalTime[]> finalIntervals = new ArrayList<>();
+        for (LocalTime[] businessInt : businessIntervals) {
+            for (LocalTime[] workerInt : workerIntervals) {
+                LocalTime start = businessInt[0].isAfter(workerInt[0]) ? businessInt[0] : workerInt[0];
+                LocalTime end = businessInt[1].isBefore(workerInt[1]) ? businessInt[1] : workerInt[1];
+
+                if (!start.isAfter(end) && !start.equals(end)) {
+                    finalIntervals.add(new LocalTime[]{start, end});
+                }
+            }
+        }
+        return finalIntervals;
+    }
+
+    private boolean isOverlapping(LocalDateTime start, LocalDateTime end, List<Cita> citas, List<PeriodoNoDisponible> bloqueos) {
+        for (Cita cita : citas) {
+            if (start.isBefore(cita.getFechaHoraFin()) && end.isAfter(cita.getFechaHoraInicio())) {
+                return true;
+            }
+        }
+        for (PeriodoNoDisponible bloqueo : bloqueos) {
+            if (start.isBefore(bloqueo.getFechaHoraFin()) && end.isAfter(bloqueo.getFechaHoraInicio())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
