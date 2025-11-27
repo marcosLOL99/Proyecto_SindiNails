@@ -20,6 +20,8 @@ export default function ReservarCita() {
   const [servicio, setServicio] = useState(null);
   const [trabajadores, setTrabajadores] = useState([]);
   const [horasDisponibles, setHorasDisponibles] = useState([]);
+  const [diasNoDisponibles, setDiasNoDisponibles] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
   
   // Estados de selección del usuario
   const [selectedTrabajador, setSelectedTrabajador] = useState(null);
@@ -30,6 +32,7 @@ export default function ReservarCita() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [loadingHoras, setLoadingHoras] = useState(false);
+  const [loadingDias, setLoadingDias] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
@@ -54,6 +57,36 @@ export default function ReservarCita() {
 
     fetchInitialData();
   }, [servicioId]);
+
+  // Efecto para cargar los días no disponibles cuando cambia el trabajador o el mes
+  useEffect(() => {
+    if (selectedTrabajador) {
+      const fetchDiasNoDisponibles = async () => {
+        setLoadingDias(true);
+        try {
+          const params = new URLSearchParams({
+            trabajadorId: selectedTrabajador.id,
+            servicioId: servicioId,
+            anio: currentMonth.getFullYear(),
+            mes: currentMonth.getMonth() + 1, // getMonth() es 0-indexado
+          });
+          const res = await apiClient.get(`/citas/dias-no-disponibles?${params.toString()}`);
+          // Convertimos las fechas string del backend a objetos Date
+          // Normalizamos las fechas para evitar problemas con la zona horaria.
+          const disabledDates = res.data.map(dateStr => {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+          });
+          setDiasNoDisponibles(disabledDates);
+        } catch (err) {
+          console.error("Error al cargar días no disponibles:", err);
+        } finally {
+          setLoadingDias(false);
+        }
+      };
+      fetchDiasNoDisponibles();
+    }
+  }, [selectedTrabajador, servicioId, currentMonth]);
 
   // Efecto para cargar las horas disponibles cuando se selecciona trabajador y fecha
   useEffect(() => {
@@ -208,7 +241,13 @@ export default function ReservarCita() {
                     mode="single"
                     selected={selectedDate}
                     onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
+                    disabled={[
+                      ...diasNoDisponibles, // Días ocupados desde la API
+                      { before: new Date() } // Todos los días antes de hoy
+                    ]}
+                    month={currentMonth}
+                    onMonthChange={setCurrentMonth}
+                    footer={loadingDias ? <p className="text-center text-sm text-gray-500 py-2">Actualizando calendario...</p> : null}
                     className="rounded-md border [cell-padding:0] w-full max-w-md"
                     locale={es}
                   />

@@ -20,14 +20,26 @@ const AdminDashboard = () => {
           apiClient.get('/admin/stats/citas-semanales') // Nuevo endpoint para el gráfico
         ]);
 
+        const ahora = new Date();
         const hoy = new Date().toISOString().split('T')[0];
-        const citasHoy = citasRes.data.filter(c => c && c.fecha && typeof c.fecha === 'string' && c.fecha.startsWith(hoy));
+
+        // 1. Filtrar citas para hoy
+        const citasHoy = citasRes.data.filter(c => c && c.fechaHoraInicio && c.fechaHoraInicio.startsWith(hoy));
+
+        // 2. Ordenar las citas de hoy por hora
+        citasHoy.sort((a, b) => new Date(a.fechaHoraInicio) - new Date(b.fechaHoraInicio));
+
+        // 3. Filtrar solo las citas que aún no han pasado
+        const proximasCitasHoy = citasHoy.filter(c => new Date(c.fechaHoraInicio) > ahora);
+
+        // Función para formatear la hora
+        const formatTime = (dateString) => new Date(dateString).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
         setStats({
           totalClientes: clientesRes.data.length,
           totalTrabajadores: trabajadoresRes.data.filter(t => t.activo).length,
           citasHoy: citasHoy.length,
-          proximasCitas: citasHoy.slice(0, 5), // Las primeras 5 de hoy
+          proximasCitas: proximasCitasHoy.slice(0, 5).map(c => ({ ...c, horaFormateada: formatTime(c.fechaHoraInicio) })), // Las próximas 5 de hoy
           chartData: chartDataRes.data, // Usamos los datos reales del backend
         });
 
@@ -103,10 +115,10 @@ const AdminDashboard = () => {
                 <div key={cita.id} className="flex items-center">
                   <Calendar className="h-5 w-5 text-cyan-500 mr-4" />
                   <div className="flex-grow">
-                    <p className="text-sm font-medium leading-none">{cita.usuario.nombre} {cita.usuario.apellidos}</p>
+                    <p className="text-sm font-medium leading-none">{cita.cliente.nombre} {cita.cliente.apellidos}</p>
                     <p className="text-sm text-muted-foreground">{cita.servicio.nombre} con {cita.trabajador.nombre}</p>
                   </div>
-                  <div className="ml-auto font-medium">{cita.hora}</div>
+                  <div className="ml-auto font-medium">{cita.horaFormateada}</div>
                 </div>
               )) : <p className="text-sm text-muted-foreground">No hay más citas programadas para hoy.</p>}
             </div>

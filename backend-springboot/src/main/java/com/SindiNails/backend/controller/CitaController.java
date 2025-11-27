@@ -42,4 +42,14 @@ public class CitaController {
         List<String> horarios = citaService.getHorariosDisponibles(trabajadorId, servicioId, fecha);
         return ResponseEntity.ok(horarios);
     }
+
+    @GetMapping("/dias-no-disponibles")
+    public ResponseEntity<List<LocalDate>> getDiasNoDisponibles(
+            @RequestParam Long trabajadorId,
+            @RequestParam Long servicioId,
+            @RequestParam int anio,
+            @RequestParam int mes) {
+        List<LocalDate> dias = citaService.getDiasNoDisponibles(trabajadorId, servicioId, anio, mes);
+        return ResponseEntity.ok(dias);
+    }
 }

@@ -1,5 +1,6 @@
 package com.SindiNails.backend.controller;
 
+import com.SindiNails.backend.dto.BloqueoDto;
 import com.SindiNails.backend.dto.CitaDto;
 import com.SindiNails.backend.dto.CitasPorDiaDto;
 import com.SindiNails.backend.dto.AdminCreateCitaDto;
@@ -12,6 +13,7 @@ import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.service.CitaService;
 import com.SindiNails.backend.service.UsuarioService;
 import com.SindiNails.backend.service.ServicioService;
+import com.SindiNails.backend.service.PeriodoNoDisponibleService;
 import com.SindiNails.backend.service.TrabajadorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ public class AdminController {
     private final ServicioService servicioService;
     private final TrabajadorService trabajadorService;
     private final UsuarioService usuarioService;
+    private final PeriodoNoDisponibleService periodoNoDisponibleService;
 
     // --- Endpoints para Citas ---
     @GetMapping("/citas")
@@ -125,6 +128,31 @@ public class AdminController {
     @DeleteMapping("/clientes/{id}")
     public ResponseEntity<Void> deleteUsuario(@PathVariable Long id) {
         usuarioService.deleteUsuario(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // --- Endpoints para Periodos No Disponibles (Bloqueos) ---
+
+    @PostMapping("/bloqueos")
+    public ResponseEntity<BloqueoDto> crearBloqueo(@Valid @RequestBody BloqueoDto bloqueoDto) {
+        BloqueoDto nuevoBloqueo = periodoNoDisponibleService.crearBloqueo(bloqueoDto);
+        return new ResponseEntity<>(nuevoBloqueo, HttpStatus.CREATED);
+    }
+
+    @GetMapping("/bloqueos/trabajador/{trabajadorId}")
+    public ResponseEntity<List<BloqueoDto>> getBloqueosPorTrabajador(@PathVariable Long trabajadorId) {
+        List<BloqueoDto> bloqueos = periodoNoDisponibleService.getBloqueosPorTrabajador(trabajadorId);
+        return ResponseEntity.ok(bloqueos);
+    }
+
+    @GetMapping("/bloqueos/globales")
+    public ResponseEntity<List<BloqueoDto>> getBloqueosGlobales() {
+        return ResponseEntity.ok(periodoNoDisponibleService.getBloqueosGlobales());
+    }
+
+    @DeleteMapping("/bloqueos/{id}")
+    public ResponseEntity<Void> eliminarBloqueo(@PathVariable Long id) {
+        periodoNoDisponibleService.eliminarBloqueo(id);
         return ResponseEntity.noContent().build();
     }
 }

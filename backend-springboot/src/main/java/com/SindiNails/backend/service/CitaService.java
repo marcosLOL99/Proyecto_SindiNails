@@ -10,18 +10,22 @@ import com.SindiNails.backend.dto.TrabajadorDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.EstadoCita;
+import com.SindiNails.backend.model.PeriodoNoDisponible;
 import com.SindiNails.backend.model.ServicioLocal;
+import com.SindiNails.backend.model.TipoBloqueo;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioServicios;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
+import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -41,6 +45,7 @@ public class CitaService {
     private final RepositorioTrabajador repositorioTrabajador;
     private final RepositorioServicios repositorioServicios;
     private final RepositorioUsuario repositorioUsuario;
+    private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -154,6 +159,13 @@ public class CitaService {
         LocalDateTime finDelDia = fecha.atTime(LocalTime.MAX);
         List<Cita> citasDelDia = repositorioCita.findCitasSolapadas(trabajadorId, inicioDelDia, finDelDia);
 
+        // Obtener los periodos de no disponibilidad (bloqueos) para ese día
+        List<PeriodoNoDisponible> bloqueosDelDia = new ArrayList<>();
+        // Bloqueos globales (festivos)
+        bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, finDelDia, inicioDelDia));
+        // Bloqueos específicos del trabajador
+        bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajadorId, finDelDia, inicioDelDia));
+
         List<String> horariosDisponibles = new ArrayList<>();
         LocalTime horaActual = HORA_INICIO_JORNADA;
 
@@ -172,6 +184,16 @@ public class CitaService {
                 }
             }
 
+            // Comprobamos si el nuevo hueco se solapa con un periodo de no disponibilidad
+            if (!estaSolapado) {
+                for (PeriodoNoDisponible bloqueo : bloqueosDelDia) {
+                    if (posibleInicio.isBefore(bloqueo.getFechaHoraFin()) && posibleFin.isAfter(bloqueo.getFechaHoraInicio())) {
+                        estaSolapado = true;
+                        break;
+                    }
+                }
+            }
+
             if (!estaSolapado) {
                 // Si no hay solapamiento, añadimos la hora a la lista de disponibles
                 horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
@@ -181,6 +203,24 @@ public class CitaService {
             horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
         }
         return horariosDisponibles;
+    }
+
+    public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
+        YearMonth yearMonth = YearMonth.of(anio, mes);
+        List<LocalDate> diasNoDisponibles = new ArrayList<>();
+
+        // Iteramos por cada día del mes
+        for (int dia = 1; dia <= yearMonth.lengthOfMonth(); dia++) {
+            LocalDate fechaActual = yearMonth.atDay(dia);
+
+            // Si el día es pasado, lo añadimos directamente
+            if (fechaActual.isBefore(LocalDate.now())) {
+                diasNoDisponibles.add(fechaActual);
+            } else if (getHorariosDisponibles(trabajadorId, servicioId, fechaActual).isEmpty()) {
+                diasNoDisponibles.add(fechaActual);
+            }
+        }
+        return diasNoDisponibles;
     }
 
     public List<CitasPorDiaDto> getCitasUltimaSemana() {
