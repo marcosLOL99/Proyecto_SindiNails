@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Menu, X, Home, Hammer, Phone, LogIn, User, LogOut, LayoutDashboard, UserPlus, ShieldCheck } from "lucide-react";
+import logo from '../assets/SindiNailsLogoBooksy.JPG';
 
 export default function Navbar() {
   const location = useLocation();
@@ -34,7 +35,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex-shrink-0 flex items-center">
-            <img className="h-14 w-14 rounded-full object-cover shadow-md transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-lg hover:rotate-[-6deg]" src="/src/assets/SindiNailsLogoBooksy.JPG" alt="SindiNails Logo" />
+            <img className="h-14 w-14 rounded-full object-cover shadow-md transition-all duration-300 ease-in-out hover:scale-110 hover:shadow-lg hover:rotate-[-6deg]" src={logo} alt="SindiNails Logo" />
           </Link>
 
           {/* Menu de escritorio */}

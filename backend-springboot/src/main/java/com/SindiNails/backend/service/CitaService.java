@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -94,6 +95,7 @@ public class CitaService {
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
 
+        // Validar disponibilidad excluyendo la propia cita que se está actualizando
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(),
                 fechaHoraInicio, fechaHoraFin, citaId);
         if (!citasSolapadas.isEmpty()) {
@@ -117,22 +119,23 @@ public class CitaService {
     }
 
     @Transactional
-    public void cancelarCita(Long citaId, Usuario usuario) {
+    public void cancelarCita(Long citaId, Usuario cliente) {
         Cita cita = repositorioCita.findById(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
 
-        if (usuario.getRole() == Role.USER) {
-            if (!cita.getCliente().getId().equals(usuario.getId())) {
-                throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
-            }
-
-            LocalDateTime ahora = LocalDateTime.now();
-            LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
-            if (ahora.isAfter(limiteCancelacion)) {
-                throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
-            }
+        // 1. Verificar que el usuario es el dueño de la cita
+        if (!cita.getCliente().getId().equals(cliente.getId())) {
+            throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
         }
 
+        // 2. Verificar la regla de las 12 horas
+        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
+        if (ahora.isAfter(limiteCancelacion)) {
+            throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        // 3. Cambiar el estado y guardar
         cita.setEstado(EstadoCita.CANCELADA);
         repositorioCita.save(cita);
     }
@@ -194,6 +197,8 @@ public class CitaService {
     }
 
     private List<LocalTime[]> getWorkingIntervalsForDay(Long trabajadorId, LocalDate fecha) {
+        // La lógica correcta es simplemente devolver los turnos asignados al trabajador para esa fecha.
+        // El cálculo de intersección con el horario del negocio era incorrecto y la causa del error.
         List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFecha(trabajadorId, fecha);
         return turnos.stream()
                 .map(t -> new LocalTime[]{t.getHoraInicio(), t.getHoraFin()})
@@ -216,12 +221,16 @@ public class CitaService {
 
     public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
         LocalDate primerDiaDelMes = LocalDate.of(anio, mes, 1);
-        List<LocalDate> diasNoDisponibles = new ArrayList<>();
-        LocalDate finMes = primerDiaDelMes.withDayOfMonth(primerDiaDelMes.lengthOfMonth());
+        LocalDate fechaInicioRango = primerDiaDelMes.with(DayOfWeek.MONDAY);
 
-        for (LocalDate fecha = primerDiaDelMes; !fecha.isAfter(finMes); fecha = fecha.plusDays(1)) {
-            if (fecha.isBefore(LocalDate.now()) || getHorariosDisponibles(trabajadorId, servicioId, fecha).isEmpty()) {
-                diasNoDisponibles.add(fecha);
+        List<LocalDate> diasNoDisponibles = new ArrayList<>();
+
+        for (int i = 0; i < 42; i++) {
+            LocalDate fechaActual = fechaInicioRango.plusDays(i);
+            if (fechaActual.isBefore(LocalDate.now())) {
+                diasNoDisponibles.add(fechaActual);
+            } else if (getHorariosDisponibles(trabajadorId, servicioId, fechaActual).isEmpty()) {
+                diasNoDisponibles.add(fechaActual);
             }
         }
         return diasNoDisponibles;
