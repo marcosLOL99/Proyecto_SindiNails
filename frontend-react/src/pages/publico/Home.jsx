@@ -24,7 +24,19 @@ export default function Home() {
   useEffect(() => {
     apiClient.get('/servicios')
       .then(response => {
-        setServicios(response.data);
+        // Nos aseguramos de que la respuesta sea un array antes de actualizar el estado.
+        if (Array.isArray(response.data)) {
+          setServicios(response.data);
+        } else {
+          // Si la API devuelve un objeto con una propiedad 'content' (común en paginación)
+          if (response.data && Array.isArray(response.data.content)) {
+            setServicios(response.data.content);
+          } else {
+            console.error("La respuesta de la API para servicios no es un array:", response.data);
+            // Opcional: podrías querer mostrar un error al usuario.
+            setError("El formato de los datos de servicios es incorrecto.");
+          }
+        }
         setLoading(false);
       })
       .catch(error => {
