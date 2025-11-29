@@ -48,5 +48,10 @@
     "name": "horario.negocio.domingo",
     "type": "java.lang.String",
     "description": "A description for 'horario.negocio.domingo'"
+  },
+  {
+    "name": "app.cors.allowed-origins",
+    "type": "java.lang.String",
+    "description": "A description for 'app.cors.allowed-origins'"
   }
 ]}
