@@ -1,8 +1,11 @@
-FROM maven:3.8.5-openjdk-21 AS build
+FROM eclipse-temurin:21-jdk AS build
+
+RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY pom.xml .
 COPY src ./src
-RUN mvn clean package -DskipTests
+RUN mvn -B clean package -DskipTests
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
