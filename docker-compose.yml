@@ -27,6 +27,9 @@ services:
       db:
         condition: service_healthy
     environment:
+      - SPRING_DATASOURCE_URL=jdbc:mysql://db:3306/sindinails_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      - MYSQLUSER=user
+      - MYSQLPASSWORD=password
       - JWT_SECRET_KEY=EWtqmcTfU6SC13R5Z4D1Rw4UPadI/TD4D86kDBGi+zA=
       - JWT_EXPIRATION=86400000
     networks:
@@ -38,6 +41,8 @@ services:
     restart: unless-stopped
     ports:
       - "80:80"
+    environment:
+      - BACKEND_URL=backend:8080
     depends_on:
       - backend
     networks:
