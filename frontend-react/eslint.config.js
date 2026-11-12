@@ -26,4 +26,11 @@ export default defineConfig([
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  {
+    // Archivos de configuración: se ejecutan en Node, no en el navegador.
+    files: ['*.config.{js,cjs}'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

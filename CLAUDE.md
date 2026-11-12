@@ -41,8 +41,10 @@ Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
 - Tests: `./mvnw test` (requiere Docker Desktop abierto: Testcontainers) — **no ejecutar hasta que Testcontainers esté configurado**: el `contextLoads` actual usaría el MySQL de desarrollo
 - Un test: `./mvnw test -Dtest=NombreDelTest`
 
-Frontend (desde `frontend-react/`):
-- `npm run dev` · `npm run build` · `npm run lint`
+Frontend (desde `frontend-react/`, Node.js 26 LTS):
+- `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`, o a `VITE_PROXY_TARGET` si está definida) · `npm run build` · `npm run lint`
+- Si la terminal no encuentra `node`/`npm`, la ruta es `C:\Program Files\nodejs`.
+- npm 11 no ejecuta scripts de instalación sin aprobar (el aviso de `esbuild` es normal y no afecta).
 - Tests: `npx vitest` (watch) / `npx vitest run` (una vez) — *pendiente de instalar, ver Testing*
 
 Todo junto: `docker compose up --build` → http://localhost
@@ -53,12 +55,12 @@ Todo junto: `docker compose up --build` → http://localhost
 
 1. ~~Base de datos de Railway por defecto~~ y ~~secretos en `docker-compose.yml`~~: **resuelto** en la Fase 0 (MySQL local por defecto, secretos en `.env`, JWT nuevo). El secreto JWT antiguo sigue en el historial de git: no reutilizarlo nunca.
 2. **El esquema de `init-db/dump.sql` no coincide con las entidades.** Al arrancar, Hibernate (`ddl-auto=update`) intenta cambiar `tipo_servicio.id` y `servicio_local.tipo_servicio_id` a `bigint`, falla por la clave foránea `fk_tipo_servicio` y deja un WARN. Pendiente: alinear el dump con las entidades (o pasar a migraciones con Flyway) y quitar `ddl-auto=update`.
-3. **Sin token, el backend responde 403 en vez de 401**, pero el interceptor de `router/api.js` solo cierra la sesión con 401. Un token caducado no devuelve al usuario al login. Es un comportamiento actual: caracterízalo antes de corregirlo.
-4. **CORS** solo permite el origen antiguo de Railway (`SecurityConfig`), y Vite no tiene proxy para `/api`. En desarrollo local el frontend no llega al backend. Los orígenes permitidos deben salir de una variable de entorno.
-5. `services/authService.js` usa `http://localhost:8080` a pelo y su propio axios, en vez del `apiClient` de `router/api.js`.
-6. El token JWT se guarda en `localStorage`.
-7. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`).
-8. Detalles menores: `RopositorioPeriodoNoDisp` (errata), `components.json` apunta a `tailwind.config.js` pero el archivo real es `tailwind.config.cjs`, y `README.md` está en UTF-16.
+3. **Sin token, el backend responde 403 en vez de 401**, y **un login con credenciales incorrectas también devuelve 403**. Pero el interceptor de `router/api.js` solo cierra la sesión con 401, así que un token caducado no devuelve al usuario al login. Es un comportamiento actual: caracterízalo antes de corregirlo.
+4. ~~CORS ligado a Railway y frontend local sin acceso al backend~~: **resuelto** (orígenes en `CORS_ALLOWED_ORIGINS` y proxy `/api` en Vite). ~~`authService.js` con URL a pelo~~: era código muerto, eliminado.
+5. El token JWT se guarda en `localStorage`.
+6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`).
+7. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
+8. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
 
 No te conectes a la base de datos antigua de Railway ni a ningún servicio remoto. Todo se ejecuta contra el MySQL de docker en local.
 
