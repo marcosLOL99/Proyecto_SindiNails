@@ -1,6 +1,8 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
+import com.SindiNails.backend.dto.CitasPorDiaDto;
+import com.SindiNails.backend.model.EstadoCita;
 import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Usuario;
@@ -18,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 /**
  * Comportamiento esperado de CitaService (tests permanentes).
@@ -81,6 +84,35 @@ class CitaServiceTest {
             datos.turno(sindi, ayer, "09:00", "12:00");
 
             assertThat(citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), ayer)).isEmpty();
+        }
+    }
+
+    @Nested
+    class ResumenSemanal {
+
+        @Test
+        void cuenta_las_citas_de_cada_dia_sin_las_canceladas() {
+            datos.cita(laura, sindi, manicura60, HOY.atTime(9, 0), EstadoCita.CONFIRMADA);
+            datos.cita(laura, sindi, manicura60, HOY.atTime(12, 0), EstadoCita.CANCELADA);
+            datos.cita(laura, sindi, manicura60, HOY.minusDays(2).atTime(10, 0), EstadoCita.COMPLETADA);
+            datos.cita(laura, sindi, manicura60, HOY.minusDays(2).atTime(12, 0), EstadoCita.CANCELADA);
+
+            assertThat(citaService.getCitasUltimaSemana())
+                    .extracting(CitasPorDiaDto::getName, CitasPorDiaDto::getCitas)
+                    .containsExactly(
+                            tuple("mié", 0L), tuple("jue", 0L), tuple("vie", 0L), tuple("sáb", 0L),
+                            tuple("dom", 1L), tuple("lun", 0L), tuple("mar", 1L));
+        }
+
+        @Test
+        void solo_cuenta_desde_hace_seis_dias_a_las_00_00_hasta_hoy() {
+            datos.cita(laura, sindi, manicura60, HOY.minusDays(6).atTime(0, 0), EstadoCita.COMPLETADA);
+            datos.cita(laura, sindi, manicura60, HOY.minusDays(7).atTime(23, 0), EstadoCita.COMPLETADA);
+            datos.cita(laura, sindi, manicura60, HOY.plusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThat(citaService.getCitasUltimaSemana())
+                    .extracting(CitasPorDiaDto::getCitas)
+                    .containsExactly(1L, 0L, 0L, 0L, 0L, 0L, 0L);
         }
     }
 }

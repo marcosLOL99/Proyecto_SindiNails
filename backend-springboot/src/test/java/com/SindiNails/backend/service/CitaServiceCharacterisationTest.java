@@ -524,22 +524,6 @@ class CitaServiceCharacterisationTest {
                     "FECHA+1 09:00 CANCELADA Marta Ana", "FECHA+0 10:00 CONFIRMADA Laura Sindi", "FECHA-1 18:00 PENDIENTE Marta Sindi");
         }
 
-        @Test
-        void characterises_citas_de_la_ultima_semana_SUSPICIOUS_cuenta_canceladas() {
-            LocalDate hoy = LocalDate.now();
-            cita(clienta, trabajadora, servicio60, hoy.atTime(9, 0), EstadoCita.CONFIRMADA);
-            cita(otraClienta, trabajadora, servicio60, hoy.atTime(12, 0), EstadoCita.CANCELADA);
-            cita(clienta, trabajadora, servicio60, hoy.minusDays(2).atTime(10, 0), EstadoCita.COMPLETADA);
-            cita(clienta, trabajadora, servicio60, hoy.minusDays(6).atTime(0, 0), EstadoCita.COMPLETADA);
-            cita(clienta, trabajadora, servicio60, hoy.minusDays(7).atTime(23, 0), EstadoCita.COMPLETADA);
-            cita(clienta, trabajadora, servicio60, hoy.plusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
-
-            List<CitasPorDiaDto> semana = citaService.getCitasUltimaSemana();
-
-            assertThat(semana).extracting(CitasPorDiaDto::getCitas).containsExactly(1L, 0L, 0L, 0L, 1L, 0L, 2L);
-            assertThat(semana).extracting(CitasPorDiaDto::getName).containsExactlyInAnyOrder("lun", "mar", "mié", "jue", "vie", "sáb", "dom");
-        }
-
         /** Cita en una línea, con la fecha relativa a FECHA para que no dependa del día de ejecución. */
         private String lineaRelativa(CitaDto c) {
             long dias = java.time.temporal.ChronoUnit.DAYS.between(FECHA, c.getFechaHoraInicio().toLocalDate());
