@@ -68,6 +68,14 @@ class CitaServiceTest {
         }
 
         @Test
+        void una_trabajadora_inactiva_no_tiene_huecos() {
+            Trabajador deBaja = datos.trabajadoraInactiva("Ana");
+            datos.turno(deBaja, HOY.plusDays(1), "10:00", "12:00");
+
+            assertThat(citaService.getHorariosDisponibles(deBaja.getId(), manicura60.getId(), HOY.plusDays(1))).isEmpty();
+        }
+
+        @Test
         void un_dia_pasado_no_tiene_huecos() {
             LocalDate ayer = HOY.minusDays(1);
             datos.turno(sindi, ayer, "09:00", "12:00");

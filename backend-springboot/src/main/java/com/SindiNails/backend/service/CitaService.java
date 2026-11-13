@@ -157,10 +157,13 @@ public class CitaService {
     }
 
     public List<String> getHorariosDisponibles(Long trabajadorId, Long servicioId, LocalDate fecha) {
-        repositorioTrabajador.findById(trabajadorId)
+        Trabajador trabajador = repositorioTrabajador.findById(trabajadorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId));
         ServicioLocal servicio = repositorioServicios.findById(servicioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + servicioId));
+        if (!trabajador.isActivo()) {
+            return new ArrayList<>();
+        }
 
         final int DURACION_SERVICIO = servicio.getDuracionEnMinutos();
         final int INTERVALO_MINUTOS = 15;

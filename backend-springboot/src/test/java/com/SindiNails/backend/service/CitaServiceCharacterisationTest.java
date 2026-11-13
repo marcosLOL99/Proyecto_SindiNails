@@ -174,16 +174,6 @@ class CitaServiceCharacterisationTest {
         }
 
         @Test
-        void characterises_trabajadora_inactiva_SUSPICIOUS() {
-            Trabajador inactiva = repositorioTrabajador.save(
-                    Trabajador.builder().nombre("Baja").apellidos("Inactiva").activo(false).build());
-            turno(inactiva, FECHA, "10:00", "11:00");
-
-            assertThat(citaService.getHorariosDisponibles(inactiva.getId(), servicio60.getId(), FECHA))
-                    .containsExactly("10:00");
-        }
-
-        @Test
         void characterises_trabajadora_inexistente() {
             assertThatThrownBy(() -> citaService.getHorariosDisponibles(999_999L, servicio60.getId(), FECHA))
                     .isExactlyInstanceOf(ResourceNotFoundException.class)
