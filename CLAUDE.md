@@ -59,7 +59,7 @@ Todo junto: `docker compose up --build` → http://localhost
 4. ~~CORS ligado a Railway y frontend local sin acceso al backend~~: **resuelto** (orígenes en `CORS_ALLOWED_ORIGINS` y proxy `/api` en Vite). ~~`authService.js` con URL a pelo~~: era código muerto, eliminado.
 5. El token JWT se guarda en `localStorage`.
 6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`). Las reglas de negocio lanzan `IllegalStateException`, que llega al cliente como **500 sin el mensaje**, así que el frontend muestra un error genérico en vez de, por ejemplo, "La cita ya está cancelada.".
-6b. **Probable desfase horario en el panel de administración:** `components/CitaForm.jsx` envía `fechaHoraInicio` con `toISOString()` (UTC, `...Z`), mientras que la reserva de clientas envía la hora local. Si el backend descarta la zona, las citas creadas o movidas desde el panel se guardan con una hora de diferencia y, con las reglas de turno de la Fase 1, pueden rechazarse. Hay que caracterizarlo y verificarlo antes de corregirlo.
+6b. ~~Desfase horario en el panel de administración~~: **resuelto**. `CitaForm.jsx` enviaba la hora con `toISOString()` (las 10:00 llegaban como `09:00:00.000Z`); ahora envía la hora local sin zona (`yyyy-MM-ddTHH:mm:ss`), igual que la reserva de clientas. Fijado en `CitaForm.test.jsx`.
 7. **`AuthContext` registra un interceptor de axios nuevo en cada render.** `logout` se crea de nuevo en cada render y está en las dependencias del `useEffect` que llama a `setupInterceptors`, así que los interceptores se acumulan y nunca se eliminan. Hay que caracterizarlo antes de corregirlo.
 8. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
 9. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
@@ -129,7 +129,8 @@ Herramientas integradas: `/code-review` antes de cerrar cada fase y `/security-r
 
 **Frontend — Vitest + jsdom + @testing-library/react + user-event**
 - Configurado en `vite.config.js` (bloque `test`). El setup común está en `src/test/setup.js`: matchers de jest-dom, `cleanup()` y `localStorage.clear()` tras cada test. Los imports de Vitest son explícitos (`import { describe, it, expect } from "vitest"`), sin globals.
-- Para simular la API se usará MSW, que se instalará con el primer test que lo necesite. No se hacen mocks de `apiClient` ni de axios.
+- La API se simula con MSW (`msw/node`, `setupServer`, rutas con `*/api/...`); ejemplo en `components/CitaForm.test.jsx`. No se hacen mocks de `apiClient` ni de axios.
+- Los tests del frontend se ejecutan con `TZ=Europe/Madrid` (bloque `test.env` de `vite.config.js`), así las fechas no dependen del equipo.
 - Usa los providers reales (`AuthProvider`, `createMemoryRouter`) en vez de hacer mocks de hooks como `useAuth`.
 - Comprueba que cada test nuevo puede fallar: rompe temporalmente el código, mira el test en rojo y restaura.
 - Las skills `front-end-testing` y `react-testing` recomiendan Vitest Browser Mode. **En este proyecto se usa jsdom**: sigue sus patrones de la variante Testing Library (en `resources/*-legacy.md`) y su filosofía (consultas por rol/label, interacciones de usuario reales, nada de detalles de implementación).

@@ -24,5 +24,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.js",
+    // La zona del salón: así las fechas de los tests no dependen del equipo donde se ejecuten.
+    env: { TZ: "Europe/Madrid" },
   },
 });

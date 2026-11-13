@@ -86,7 +86,8 @@ const CitaForm = ({ cita, onSave, onCancel }) => {
         idCliente: parseInt(values.idCliente),
         idServicio: parseInt(values.idServicio),
         idTrabajador: parseInt(values.idTrabajador),
-        fechaHoraInicio: fechaHoraInicio.toISOString(),
+        // Hora local del salón, sin zona: el backend guarda LocalDateTime (toISOString() la pasaría a UTC).
+        fechaHoraInicio: format(fechaHoraInicio, "yyyy-MM-dd'T'HH:mm:ss"),
       };
 
       if (cita) {
