@@ -28,7 +28,6 @@ import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * CHARACTERISATION TESTS -- documentan el comportamiento ACTUAL de CitaService, NO lo que debería hacer.
@@ -192,17 +191,6 @@ class CitaServiceCharacterisationTest {
 
             assertThat(citaService.getHorariosDisponibles(inactiva.getId(), servicio60.getId(), FECHA))
                     .containsExactly("10:00");
-        }
-
-        @Test
-        void characterises_hoy_con_un_turno_que_ya_ha_pasado_SUSPICIOUS() {
-            LocalTime ahora = LocalTime.now();
-            assumeTrue(ahora.isAfter(LocalTime.of(1, 5)), "El turno 00:00-01:00 tiene que haber terminado ya");
-            LocalDate hoy = LocalDate.now();
-            turno(trabajadora, hoy, "00:00", "01:00");
-
-            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), hoy))
-                    .containsExactly("00:00");
         }
 
         @Test

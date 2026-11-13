@@ -177,6 +177,7 @@ public class CitaService {
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, finDelDia, inicioDelDia));
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajadorId, finDelDia, inicioDelDia));
 
+        LocalDateTime ahora = LocalDateTime.now(clock);
         List<String> horariosDisponibles = new ArrayList<>();
         for (LocalTime[] interval : workingIntervals) {
             LocalTime horaActual = interval[0];
@@ -187,8 +188,9 @@ public class CitaService {
                 LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
 
                 boolean estaSolapado = isOverlapping(posibleInicio, posibleFin, citasDelDia, bloqueosDelDia);
+                boolean yaHaPasado = posibleInicio.isBefore(ahora);
 
-                if (!estaSolapado) {
+                if (!estaSolapado && !yaHaPasado) {
                     horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
                 }
 
