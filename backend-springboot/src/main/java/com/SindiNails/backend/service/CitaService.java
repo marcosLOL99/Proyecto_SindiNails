@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class CitaService {
     private final RepositorioUsuario repositorioUsuario;
     private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
     private final RepositorioTurno turnoRepository;
+    private final Clock clock;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -129,7 +131,7 @@ public class CitaService {
         }
 
         // 2. Verificar la regla de las 12 horas
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(clock);
         LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
         if (ahora.isAfter(limiteCancelacion)) {
             throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
@@ -227,7 +229,7 @@ public class CitaService {
 
         for (int i = 0; i < 42; i++) {
             LocalDate fechaActual = fechaInicioRango.plusDays(i);
-            if (fechaActual.isBefore(LocalDate.now())) {
+            if (fechaActual.isBefore(LocalDate.now(clock))) {
                 diasNoDisponibles.add(fechaActual);
             } else if (getHorariosDisponibles(trabajadorId, servicioId, fechaActual).isEmpty()) {
                 diasNoDisponibles.add(fechaActual);
@@ -237,7 +239,7 @@ public class CitaService {
     }
 
     public List<CitasPorDiaDto> getCitasUltimaSemana() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(clock);
         LocalDateTime fechaInicio = hoy.minusDays(6).atStartOfDay();
 
         List<Map<String, Object>> resultadosDb = repositorioCita.countCitasFromDate(fechaInicio);
