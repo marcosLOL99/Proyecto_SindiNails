@@ -1,1 +1,4 @@
 .vscode/
+
+# Variables de entorno locales (secretos)
+.env
