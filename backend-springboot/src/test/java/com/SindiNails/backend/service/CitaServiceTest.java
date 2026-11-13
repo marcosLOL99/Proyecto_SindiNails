@@ -57,6 +57,17 @@ class CitaServiceTest {
         }
 
         @Test
+        void con_turno_partido_los_huecos_salen_ordenados_por_hora() {
+            LocalDate manana = HOY.plusDays(1);
+            datos.turno(sindi, manana, "16:00", "18:00");
+            datos.turno(sindi, manana, "09:00", "11:00");
+
+            assertThat(citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), manana))
+                    .containsExactly("09:00", "09:15", "09:30", "09:45", "10:00",
+                            "16:00", "16:15", "16:30", "16:45", "17:00");
+        }
+
+        @Test
         void un_dia_pasado_no_tiene_huecos() {
             LocalDate ayer = HOY.minusDays(1);
             datos.turno(sindi, ayer, "09:00", "12:00");

@@ -110,16 +110,6 @@ class CitaServiceCharacterisationTest {
         }
 
         @Test
-        void characterises_dos_turnos_partidos_SUSPICIOUS_huecos_sin_ordenar() {
-            turno(trabajadora, FECHA, "16:00", "18:00");
-            turno(trabajadora, FECHA, "09:00", "11:00");
-
-            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
-                    .containsExactly(
-                    "16:00", "16:15", "16:30", "16:45", "17:00", "09:00", "09:15", "09:30", "09:45", "10:00");
-        }
-
-        @Test
         void characterises_cita_confirmada_ocupa_huecos() {
             turno(trabajadora, FECHA, "10:00", "13:00");
             cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 30), EstadoCita.CONFIRMADA);

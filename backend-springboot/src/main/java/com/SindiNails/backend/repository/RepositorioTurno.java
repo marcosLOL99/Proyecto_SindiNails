@@ -8,5 +8,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.SindiNails.backend.model.Turno;
 
 public interface RepositorioTurno extends JpaRepository<Turno, Long> {
-    List<Turno> findByTrabajadorIdAndFecha(Long trabajadorId, LocalDate fecha);
+    List<Turno> findByTrabajadorIdAndFechaOrderByHoraInicioAsc(Long trabajadorId, LocalDate fecha);
 }

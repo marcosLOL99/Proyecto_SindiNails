@@ -203,7 +203,7 @@ public class CitaService {
     private List<LocalTime[]> getWorkingIntervalsForDay(Long trabajadorId, LocalDate fecha) {
         // La lógica correcta es simplemente devolver los turnos asignados al trabajador para esa fecha.
         // El cálculo de intersección con el horario del negocio era incorrecto y la causa del error.
-        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFecha(trabajadorId, fecha);
+        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(trabajadorId, fecha);
         return turnos.stream()
                 .map(t -> new LocalTime[]{t.getHoraInicio(), t.getHoraFin()})
                 .collect(Collectors.toList());
