@@ -61,6 +61,7 @@ Todo junto: `docker compose up --build` → http://localhost
 6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`). Las reglas de negocio lanzan `IllegalStateException`, que llega al cliente como **500 sin el mensaje**, así que el frontend muestra un error genérico en vez de, por ejemplo, "La cita ya está cancelada.".
 6b. ~~Desfase horario en el panel de administración~~: **resuelto**. `CitaForm.jsx` enviaba la hora con `toISOString()` (las 10:00 llegaban como `09:00:00.000Z`); ahora envía la hora local sin zona (`yyyy-MM-ddTHH:mm:ss`), igual que la reserva de clientas. Fijado en `CitaForm.test.jsx`.
 7. **`AuthContext` registra un interceptor de axios nuevo en cada render.** `logout` se crea de nuevo en cada render y está en las dependencias del `useEffect` que llama a `setupInterceptors`, así que los interceptores se acumulan y nunca se eliminan. Hay que caracterizarlo antes de corregirlo.
+7b. **Reservas simultáneas:** `createCita` y `updateCita` comprueban el solape y después guardan, sin bloqueo ni restricción en la base de datos. Dos reservas del mismo hueco a la vez quedan confirmadas las dos. Pendiente: test con dos reservas en paralelo y corregirlo con `tdd` (bloqueo por trabajadora o restricción).
 8. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
 9. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
 
@@ -77,7 +78,7 @@ Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFi
 
 Lo que todavía no tiene test permanente sigue en `CitaServiceCharacterisationTest` (huecos con citas y bloqueos, días no disponibles, borrar, listados): se sustituirá al refactorizar `CitaService`.
 
-Notas de diseño para el refactor: `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada; `createCita` y `updateCita` repiten la carga de servicio y trabajadora y el cálculo del fin.
+Notas de diseño para el refactor: la regla "el hueco cabe en un turno y no pisa ausencias, bloqueos ni citas" está escrita dos veces, en `validarHorarioReservable` (al reservar) y en `getHorariosDisponibles` + `isOverlapping` (al ofrecer huecos); conviene una sola comprobación para que lo que se ofrece y lo que se acepta no se separen; `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada; `createCita` y `updateCita` repiten la carga de servicio y trabajadora y el cálculo del fin.
 
 ---
 

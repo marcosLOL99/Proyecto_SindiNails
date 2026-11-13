@@ -37,7 +37,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * Son temporales: se sustituirán por tests de comportamiento cuando CitaService se refactorice.
  * Ver la skill characterisation-tests.
  *
- * Las fechas son relativas a hoy (el servicio usa LocalDate.now()/LocalDateTime.now() sin Clock inyectable).
+ * Las fechas son relativas a hoy: esta clase usa el reloj real de la aplicación (ClockConfig) y no RelojFijo,
+ * porque se escribió antes de que CitaService recibiera el Clock inyectado.
  * La clase es @Transactional: cada test se revierte y la sesión JPA queda abierta, igual que en una
  * petición HTTP real (open-in-view), necesario porque convertToDto recorre relaciones LAZY.
  */
