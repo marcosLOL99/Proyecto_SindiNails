@@ -100,7 +100,12 @@ public class CitaService {
 
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
-        validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
+        // Si la hora de inicio no cambia, es una corrección (servicio, trabajadora) y no una cita nueva en otro
+        // horario: se permite aunque la cita ya haya pasado o la trabajadora ya no tenga turno. El solape sí se comprueba.
+        boolean cambiaLaHora = !fechaHoraInicio.equals(citaExistente.getFechaHoraInicio());
+        if (cambiaLaHora) {
+            validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
+        }
 
         // Validar disponibilidad excluyendo la propia cita que se está actualizando
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(),

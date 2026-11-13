@@ -407,6 +407,38 @@ class CitaServiceTest {
         }
 
         @Test
+        void sin_cambiar_la_hora_se_puede_corregir_el_servicio_de_una_cita_pasada() {
+            ServicioLocal retirada45 = datos.servicio("Retirada", 45);
+            Cita deAyer = datos.cita(laura, sindi, manicura60, HOY.minusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto corregida = citaService.updateCita(deAyer.getId(), reserva(retirada45, sindi, HOY.minusDays(1).atTime(10, 0)));
+
+            assertThat(corregida.getServicio().getNombre()).isEqualTo("Retirada");
+            assertThat(corregida.getFechaHoraFin()).isEqualTo(HOY.minusDays(1).atTime(10, 45));
+        }
+
+        @Test
+        void sin_cambiar_la_hora_se_puede_corregir_la_trabajadora_aunque_ya_no_este_activa_ni_tenga_turno() {
+            Trabajador deBaja = datos.trabajadoraInactiva("Ana");
+            Cita deAyer = datos.cita(laura, sindi, manicura60, HOY.minusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto corregida = citaService.updateCita(deAyer.getId(), reserva(manicura60, deBaja, HOY.minusDays(1).atTime(10, 0)));
+
+            assertThat(corregida.getTrabajador().getNombre()).isEqualTo("Ana");
+        }
+
+        @Test
+        void sin_cambiar_la_hora_sigue_sin_poder_solaparse_con_otra_cita() {
+            ServicioLocal largo120 = datos.servicio("Uñas esculpidas", 120);
+            Cita deAyer = datos.cita(laura, sindi, manicura60, HOY.minusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
+            datos.cita(datos.clienta("Marta"), sindi, manicura60, HOY.minusDays(1).atTime(11, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(deAyer.getId(), reserva(largo120, sindi, HOY.minusDays(1).atTime(10, 0))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
+        }
+
+        @Test
         void no_se_puede_mover_una_cita_cancelada() {
             Cita cancelada = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CANCELADA);
 
