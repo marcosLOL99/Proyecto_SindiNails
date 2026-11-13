@@ -68,7 +68,7 @@ No te conectes a la base de datos antigua de Railway ni a ningún servicio remot
 
 ### Reglas de negocio de las citas (`CitaService`)
 
-Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFijo`). Los bugs S1–S7 encontrados al caracterizar en la Fase 1 se corrigieron así:
+Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFijo`). "Ahora" es la hora del salón: el `Clock` de `ClockConfig` usa `app.zona-horaria` (`Europe/Madrid`), no la zona del sistema (en docker la JVM está en UTC). Citas y turnos se guardan como hora local del salón. Los bugs S1–S7 encontrados al caracterizar en la Fase 1 se corrigieron así:
 
 - **Reservar o mover una cita** (también la administración): no en el pasado; trabajadora activa; la cita entera dentro de uno de sus turnos de ese día; sin pisar ausencias de la trabajadora ni bloqueos globales; sin solaparse con otra cita no cancelada. No hace falta empezar en un cuarto de hora. Una cita cancelada no se puede mover.
 - **Huecos libres**: cada 15 minutos dentro de los turnos, ordenados por hora; nunca huecos que ya han pasado; ninguno para una trabajadora inactiva; con turnos que acaban cerca de medianoche, solo huecos que terminan ese mismo día (antes el cálculo daba la vuelta a las 00:00 y no terminaba nunca).
