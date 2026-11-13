@@ -14,19 +14,25 @@ import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.support.DatosDePrueba;
 import com.SindiNails.backend.support.RelojFijo;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -93,6 +99,55 @@ class CitaServiceTest {
             datos.turno(sindi, ayer, "09:00", "12:00");
 
             assertThat(citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), ayer)).isEmpty();
+        }
+    }
+
+    /**
+     * Con el bug, el cálculo de huecos no terminaba nunca, así que cada llamada va con un límite de tiempo.
+     * assertTimeoutPreemptively la ejecuta en otro hilo, que no ve una transacción de test sin confirmar:
+     * por eso esta clase no es transaccional y borra sus datos al terminar.
+     */
+    @Nested
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    class HuecosCercaDeMedianoche {
+
+        private final LocalDate manana = HOY.plusDays(1);
+
+        @Autowired JdbcTemplate jdbc;
+
+        @AfterEach
+        void borrarDatosConfirmados() {
+            jdbc.update("DELETE FROM turnos WHERE trabajador_id = ?", sindi.getId());
+            jdbc.update("DELETE FROM servicio_local WHERE id = ?", manicura60.getId());
+            jdbc.update("DELETE FROM tipo_servicio WHERE id = ?", manicura60.getTipoServicio().getId());
+            jdbc.update("DELETE FROM trabajadores WHERE id = ?", sindi.getId());
+            jdbc.update("DELETE FROM usuarios WHERE id = ?", laura.getId());
+        }
+
+        @Test
+        void un_turno_que_acaba_a_las_23_59_solo_ofrece_huecos_que_terminan_ese_mismo_dia() {
+            datos.turno(sindi, manana, "22:00", "23:59");
+
+            List<String> huecos = assertTimeoutPreemptively(Duration.ofSeconds(5),
+                    () -> citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), manana));
+
+            assertThat(huecos).containsExactly("22:00", "22:15", "22:30", "22:45");
+        }
+
+        @Test
+        void con_un_servicio_corto_el_ultimo_hueco_del_dia_no_vuelve_a_empezar_a_las_00_00() {
+            ServicioLocal retoque10 = datos.servicio("Retoque", 10);
+            datos.turno(sindi, manana, "23:30", "23:59");
+
+            try {
+                List<String> huecos = assertTimeoutPreemptively(Duration.ofSeconds(5),
+                        () -> citaService.getHorariosDisponibles(sindi.getId(), retoque10.getId(), manana));
+
+                assertThat(huecos).containsExactly("23:30", "23:45");
+            } finally {
+                jdbc.update("DELETE FROM servicio_local WHERE id = ?", retoque10.getId());
+                jdbc.update("DELETE FROM tipo_servicio WHERE id = ?", retoque10.getTipoServicio().getId());
+            }
         }
     }
 

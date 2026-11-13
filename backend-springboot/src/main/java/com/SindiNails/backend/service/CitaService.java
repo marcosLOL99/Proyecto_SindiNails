@@ -227,21 +227,21 @@ public class CitaService {
         LocalDateTime ahora = LocalDateTime.now(clock);
         List<String> horariosDisponibles = new ArrayList<>();
         for (LocalTime[] interval : workingIntervals) {
-            LocalTime horaActual = interval[0];
-            LocalTime finIntervalo = interval[1];
+            // Se recorre con fecha y hora completas: con LocalTime, pasar de las 23:59 daría la vuelta a las 00:00.
+            LocalDateTime posibleInicio = fecha.atTime(interval[0]);
+            LocalDateTime finIntervalo = fecha.atTime(interval[1]);
 
-            while (!horaActual.plusMinutes(DURACION_SERVICIO).isAfter(finIntervalo)) {
-                LocalDateTime posibleInicio = fecha.atTime(horaActual);
+            while (!posibleInicio.plusMinutes(DURACION_SERVICIO).isAfter(finIntervalo)) {
                 LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
 
                 boolean estaSolapado = isOverlapping(posibleInicio, posibleFin, citasDelDia, bloqueosDelDia);
                 boolean yaHaPasado = posibleInicio.isBefore(ahora);
 
                 if (!estaSolapado && !yaHaPasado) {
-                    horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
+                    horariosDisponibles.add(posibleInicio.format(DateTimeFormatter.ofPattern("HH:mm")));
                 }
 
-                horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
+                posibleInicio = posibleInicio.plusMinutes(INTERVALO_MINUTOS);
             }
         }
         return horariosDisponibles;
