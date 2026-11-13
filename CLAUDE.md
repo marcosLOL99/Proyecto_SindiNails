@@ -47,6 +47,7 @@ Frontend (desde `frontend-react/`, Node.js 26 LTS):
 - Si la terminal no encuentra `node`/`npm`, la ruta es `C:\Program Files\nodejs`.
 - npm 11 no ejecuta scripts de instalación sin aprobar (el aviso de `esbuild` es normal y no afecta).
 - Tests: `npm test` (modo watch) / `npm run test:run` (una vez) / `npx vitest run ruta/al/archivo.test.jsx`
+- Mutation testing (StrykerJS, al cierre de fase): `npm run test:mutation -- --mutate src/components/CitaForm.jsx` (admite rango de líneas: `archivo.jsx:79-105`). Configuración en `stryker.config.json`; informe en `reports/mutation/mutation.html`. Sin `--mutate` muta todo `src/` salvo tests y `components/ui/` (tarda mucho).
 
 Todo junto: `docker compose up --build` → http://localhost
 
@@ -107,7 +108,7 @@ Herramientas integradas: `/code-review` antes de cerrar cada fase y `/security-r
 - **Evaluación del refactor:** antes de editar, lista los candidatos con `Critical:` / `High:` / `Nice:` / `Skip:` y termina con `Decision:` (formato de la skill `refactoring`).
 - **DRY se aplica al conocimiento, no al código que se parece.** Dos reglas de negocio que hoy coinciden (por ejemplo, la duración de dos servicios) no se fusionan.
 - **Nada especulativo:** no añadas validaciones, abstracciones ni funcionalidades que ningún test o requisito pida.
-- **Mutation testing al cierre de cada fase**, no tras cada paso: PIT en el backend y StrykerJS en el frontend. Se instalan al cerrar la primera fase. Mientras no existan, indica `N/A` y qué otra prueba lo respalda.
+- **Mutation testing al cierre de cada fase**, no tras cada paso: PIT en el backend y StrykerJS en el frontend (instalados al cerrar la Fase 1; comandos en "Comandos"). Se ejecutan sobre el código cambiado en la fase. Los mutantes equivalentes (que ningún test puede distinguir) se anotan y no se persiguen.
 
 ### Rediseño visual
 
