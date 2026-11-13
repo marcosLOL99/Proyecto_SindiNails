@@ -65,21 +65,18 @@ Todo junto: `docker compose up --build` → http://localhost
 
 No te conectes a la base de datos antigua de Railway ni a ningún servicio remoto. Todo se ejecuta contra el MySQL de docker en local.
 
-### Comportamientos sospechosos de `CitaService` (caracterizados en la Fase 1, pendientes de decisión)
+### Reglas de negocio de las citas (`CitaService`)
 
-Están fijados en `CitaServiceCharacterisationTest` con el sufijo `SUSPICIOUS`. No se corrigen hasta que el usuario decida el comportamiento correcto; después, cada uno se arregla con `tdd` y su test de caracterización se sustituye por uno de comportamiento.
+Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFijo`). Los bugs S1–S7 encontrados al caracterizar en la Fase 1 se corrigieron así:
 
-| # | Comportamiento actual | Dónde |
-|---|---|---|
-| S1 | `createCita` solo comprueba solapes con otras citas: **permite reservar sin turno ese día, durante una ausencia o un bloqueo global, y en el pasado**. Desde la web, el `@Future` del DTO frena las fechas pasadas, pero el servicio no las rechaza. | `createCita`, `updateCita` |
-| S2 | **Hoy se ofrecen huecos de horas que ya han pasado.** | `getHorariosDisponibles` |
-| S3 | **Una trabajadora inactiva (`activo=false`) sigue teniendo huecos reservables.** | `getHorariosDisponibles` |
-| S4 | **Con un turno partido, los huecos salen en el orden de la base de datos**, no por hora (`16:00…` antes que `09:00…`). | `getHorariosDisponibles` |
-| S5 | **El resumen semanal del panel cuenta también las citas canceladas.** | `getCitasUltimaSemana` |
-| S6 | **Se puede mover una cita cancelada** (sigue cancelada) y **cancelar una que ya estaba cancelada** (no da error). | `updateCita`, `cancelarCita` |
-| S7 | `cancelarCita` usa la misma regla (y mensaje) de "menos de 12 horas" para una cita que ya pasó. | `cancelarCita` |
+- **Reservar o mover una cita** (también la administración): no en el pasado; trabajadora activa; la cita entera dentro de uno de sus turnos de ese día; sin pisar ausencias de la trabajadora ni bloqueos globales; sin solaparse con otra cita no cancelada. No hace falta empezar en un cuarto de hora. Una cita cancelada no se puede mover.
+- **Huecos libres**: cada 15 minutos dentro de los turnos, ordenados por hora; nunca huecos que ya han pasado; ninguno para una trabajadora inactiva.
+- **Cancelar** (clienta): solo la dueña, con 12 horas o más de antelación (justo 12 h vale); no una cita ya cancelada ni una que ya ha pasado (cada caso con su mensaje).
+- **Resumen semanal del panel**: últimos 7 días (desde hace 6 días a las 00:00), sin contar las canceladas.
 
-Notas de diseño para el refactor: `CitaService` usa `LocalDate.now()`/`LocalDateTime.now()` directamente (habría que inyectar un `Clock`); `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada.
+Lo que todavía no tiene test permanente sigue en `CitaServiceCharacterisationTest` (huecos con citas y bloqueos, días no disponibles, borrar, listados): se sustituirá al refactorizar `CitaService`.
+
+Notas de diseño para el refactor: `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada; `createCita` y `updateCita` repiten la carga de servicio y trabajadora y el cálculo del fin.
 
 ---
 

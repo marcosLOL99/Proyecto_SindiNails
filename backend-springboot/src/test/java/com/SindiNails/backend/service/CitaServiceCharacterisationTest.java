@@ -1,10 +1,8 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
-import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.CitaDto;
 import com.SindiNails.backend.dto.CitasPorDiaDto;
-import com.SindiNails.backend.dto.CreateCitaDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.*;
 import com.SindiNails.backend.repository.*;
@@ -237,172 +235,7 @@ class CitaServiceCharacterisationTest {
         }
     }
 
-    // ---------------------------------------------------------------- createCita / createCitaByAdmin
-
-    @Nested
-    class CrearCita {
-
-        @Test
-        void characterises_cita_creada() {
-            turno(trabajadora, FECHA, "10:00", "13:00");
-
-            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
-
-            assertThat(resumen(creada)).isEqualTo(
-                    "estado=CONFIRMADA dia=FECHA+0 inicio=10:00 fin=11:00 mismoDia=true servicio=Semipermanente/25.5/60min trabajadora=Sindi García cliente=Laura Pérez laura-*@test.com");
-            assertThat(repositorioCita.count()).isEqualTo(1);
-        }
-
-        @Test
-        void characterises_solape_con_otra_cita() {
-            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
-
-            assertThatThrownBy(() -> citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 30)), clienta))
-                    .isExactlyInstanceOf(IllegalStateException.class)
-                    .hasMessage("El trabajador no está disponible en el horario seleccionado.");
-        }
-
-        @Test
-        void characterises_cita_justo_a_continuacion_de_otra() {
-            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
-
-            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(11, 0)), clienta);
-
-            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
-        }
-
-        @Test
-        void characterises_solape_con_cita_cancelada() {
-            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CANCELADA);
-
-            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
-
-            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
-        }
-
-        @Test
-        void characterises_cita_sin_turno_ese_dia_SUSPICIOUS() {
-            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(3, 0)), clienta);
-
-            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
-        }
-
-        @Test
-        void characterises_cita_durante_una_ausencia_SUSPICIOUS() {
-            turno(trabajadora, FECHA, "10:00", "13:00");
-            bloqueo(TipoBloqueo.TRABAJADOR, trabajadora, FECHA.atTime(10, 0), FECHA.atTime(13, 0));
-
-            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
-
-            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
-        }
-
-        @Test
-        void characterises_cita_en_el_pasado_SUSPICIOUS() {
-            CitaDto creada = citaService.createCita(
-                    dto(servicio60, trabajadora, LocalDate.now().minusDays(10).atTime(10, 0)), clienta);
-
-            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
-        }
-
-        @Test
-        void characterises_servicio_inexistente() {
-            CreateCitaDto dto = dto(servicio60, trabajadora, FECHA.atTime(10, 0));
-            dto.setIdServicio(999_999L);
-
-            assertThatThrownBy(() -> citaService.createCita(dto, clienta))
-                    .isExactlyInstanceOf(ResourceNotFoundException.class)
-                    .hasMessage("Servicio no encontrado con id: 999999");
-        }
-
-        @Test
-        void characterises_trabajadora_inexistente() {
-            CreateCitaDto dto = dto(servicio60, trabajadora, FECHA.atTime(10, 0));
-            dto.setIdTrabajador(999_999L);
-
-            assertThatThrownBy(() -> citaService.createCita(dto, clienta))
-                    .isExactlyInstanceOf(ResourceNotFoundException.class)
-                    .hasMessage("Trabajador no encontrado con id: 999999");
-        }
-
-        @Test
-        void characterises_admin_crea_cita_para_una_clienta() {
-            AdminCreateCitaDto dto = new AdminCreateCitaDto();
-            dto.setIdServicio(servicio60.getId());
-            dto.setIdTrabajador(trabajadora.getId());
-            dto.setFechaHoraInicio(FECHA.atTime(10, 0));
-            dto.setIdCliente(otraClienta.getId());
-
-            assertThat(resumen(citaService.createCitaByAdmin(dto))).isEqualTo(
-                    "estado=CONFIRMADA dia=FECHA+0 inicio=10:00 fin=11:00 mismoDia=true servicio=Semipermanente/25.5/60min trabajadora=Sindi García cliente=Marta Pérez marta-*@test.com");
-        }
-
-        @Test
-        void characterises_admin_con_clienta_inexistente() {
-            AdminCreateCitaDto dto = new AdminCreateCitaDto();
-            dto.setIdServicio(servicio60.getId());
-            dto.setIdTrabajador(trabajadora.getId());
-            dto.setFechaHoraInicio(FECHA.atTime(10, 0));
-            dto.setIdCliente(999_999L);
-
-            assertThatThrownBy(() -> citaService.createCitaByAdmin(dto))
-                    .isExactlyInstanceOf(ResourceNotFoundException.class)
-                    .hasMessage("Cliente no encontrado con id: 999999");
-        }
-    }
-
-    // ---------------------------------------------------------------- updateCita
-
-    @Nested
-    class ActualizarCita {
-
-        @Test
-        void characterises_mover_cita_a_otra_hora_y_servicio() {
-            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
-
-            CitaDto movida = citaService.updateCita(existente.getId(), dto(servicio45, otraTrabajadora, FECHA.atTime(16, 0)));
-
-            assertThat(resumen(movida)).isEqualTo(
-                    "estado=CONFIRMADA dia=FECHA+0 inicio=16:00 fin=16:45 mismoDia=true servicio=Retirada/10.0/45min trabajadora=Ana López cliente=Laura Pérez laura-*@test.com");
-        }
-
-        @Test
-        void characterises_mover_cita_solapando_con_su_propio_horario_anterior() {
-            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
-
-            CitaDto movida = citaService.updateCita(existente.getId(), dto(servicio60, trabajadora, FECHA.atTime(10, 15)));
-
-            assertThat(movida.getFechaHoraInicio().toLocalTime()).isEqualTo(LocalTime.of(10, 15));
-        }
-
-        @Test
-        void characterises_mover_cita_encima_de_otra() {
-            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
-            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(12, 0), EstadoCita.CONFIRMADA);
-
-            assertThatThrownBy(() -> citaService.updateCita(existente.getId(), dto(servicio60, trabajadora, FECHA.atTime(11, 30))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
-                    .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
-        }
-
-        @Test
-        void characterises_mover_una_cita_cancelada_SUSPICIOUS() {
-            Cita cancelada = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CANCELADA);
-
-            CitaDto movida = citaService.updateCita(cancelada.getId(), dto(servicio60, trabajadora, FECHA.atTime(12, 0)));
-
-            assertThat(movida.getEstado()).isEqualTo(EstadoCita.CANCELADA);
-        }
-
-        @Test
-        void characterises_cita_inexistente() {
-            assertThatThrownBy(() -> citaService.updateCita(999_999L, dto(servicio60, trabajadora, FECHA.atTime(10, 0))))
-                    .isExactlyInstanceOf(ResourceNotFoundException.class)
-                    .hasMessage("Cita no encontrada con id: 999999");
-        }
-    }
-
-    // ---------------------------------------------------------------- deleteCita / cancelarCita
+    // ---------------------------------------------------------------- deleteCita
 
     @Nested
     class BorrarYCancelar {
@@ -464,16 +297,6 @@ class CitaServiceCharacterisationTest {
 
     // ---------------------------------------------------------------- utilidades
 
-    private String resumen(CitaDto c) {
-        return "estado=%s dia=FECHA%+d inicio=%s fin=%s mismoDia=%s servicio=%s/%s/%smin trabajadora=%s %s cliente=%s %s %s".formatted(
-                c.getEstado(), java.time.temporal.ChronoUnit.DAYS.between(FECHA, c.getFechaHoraInicio().toLocalDate()),
-                c.getFechaHoraInicio().toLocalTime(), c.getFechaHoraFin().toLocalTime(),
-                c.getFechaHoraInicio().toLocalDate().equals(c.getFechaHoraFin().toLocalDate()),
-                c.getServicio().getNombre(), c.getServicio().getPrecio(), c.getServicio().getDuracionEnMinutos(),
-                c.getTrabajador().getNombre(), c.getTrabajador().getApellidos(),
-                c.getCliente().getNombre(), c.getCliente().getApellidos(), c.getCliente().getEmail().replaceAll("-[0-9a-f]+@", "-*@"));
-    }
-
     private ServicioLocal servicio(String nombre, double precio, int minutos, TipoServicio tipo) {
         ServicioLocal s = new ServicioLocal();
         s.setNombre(nombre);
@@ -506,11 +329,4 @@ class CitaServiceCharacterisationTest {
                 .estado(estado).build());
     }
 
-    private CreateCitaDto dto(ServicioLocal s, Trabajador t, LocalDateTime inicio) {
-        CreateCitaDto dto = new CreateCitaDto();
-        dto.setIdServicio(s.getId());
-        dto.setIdTrabajador(t.getId());
-        dto.setFechaHoraInicio(inicio);
-        return dto;
-    }
 }

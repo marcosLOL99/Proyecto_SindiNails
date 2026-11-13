@@ -1,7 +1,10 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
+import com.SindiNails.backend.dto.AdminCreateCitaDto;
+import com.SindiNails.backend.dto.CitaDto;
 import com.SindiNails.backend.dto.CitasPorDiaDto;
+import com.SindiNails.backend.dto.CreateCitaDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.EstadoCita;
@@ -90,6 +93,278 @@ class CitaServiceTest {
             datos.turno(sindi, ayer, "09:00", "12:00");
 
             assertThat(citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), ayer)).isEmpty();
+        }
+    }
+
+    @Nested
+    class Reservar {
+
+        private final LocalDate manana = HOY.plusDays(1);
+
+        @BeforeEach
+        void turnoDeManana() {
+            datos.turno(sindi, manana, "10:00", "14:00");
+        }
+
+        @Test
+        void crea_una_cita_confirmada_que_dura_lo_que_el_servicio() {
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 0)), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+            assertThat(creada.getFechaHoraInicio()).isEqualTo(manana.atTime(10, 0));
+            assertThat(creada.getFechaHoraFin()).isEqualTo(manana.atTime(11, 0));
+            assertThat(creada.getServicio().getNombre()).isEqualTo("Semipermanente");
+            assertThat(creada.getTrabajador().getNombre()).isEqualTo("Sindi");
+            assertThat(creada.getCliente().getNombre()).isEqualTo("Laura");
+            assertThat(repositorioCita.findById(creada.getId())).isPresent();
+        }
+
+        @Test
+        void se_puede_reservar_una_cita_que_termina_justo_al_acabar_el_turno() {
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(13, 0)), laura);
+
+            assertThat(creada.getFechaHoraFin()).isEqualTo(manana.atTime(14, 0));
+        }
+
+        @Test
+        void no_se_puede_reservar_si_la_trabajadora_no_tiene_turno_ese_dia() {
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.plusDays(1).atTime(10, 0)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void no_se_puede_reservar_una_cita_que_empieza_antes_del_turno() {
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(9, 45)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void no_se_puede_reservar_una_cita_que_termina_despues_del_turno() {
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(13, 15)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void no_se_puede_reservar_durante_una_ausencia_de_la_trabajadora() {
+            datos.ausencia(sindi, manana.atTime(11, 0), manana.atTime(12, 0));
+
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 30)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El horario seleccionado está bloqueado.");
+        }
+
+        @Test
+        void no_se_puede_reservar_durante_un_bloqueo_global() {
+            datos.bloqueoGlobal(manana.atTime(10, 0), manana.atTime(10, 30));
+
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 0)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El horario seleccionado está bloqueado.");
+        }
+
+        @Test
+        void se_puede_reservar_justo_cuando_termina_una_ausencia() {
+            datos.ausencia(sindi, manana.atTime(10, 0), manana.atTime(11, 0));
+
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(11, 0)), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void la_ausencia_de_otra_trabajadora_no_impide_reservar() {
+            datos.ausencia(datos.trabajadora("Ana"), manana.atTime(10, 0), manana.atTime(14, 0));
+
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 0)), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void no_se_puede_reservar_en_el_pasado() {
+            datos.turno(sindi, HOY, "08:00", "12:00");
+
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, HOY.atTime(9, 0)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede reservar una cita en el pasado.");
+        }
+
+        @Test
+        void se_puede_reservar_a_partir_de_la_hora_actual() {
+            datos.turno(sindi, HOY, "08:00", "12:00");
+
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, RelojFijo.AHORA), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void no_se_puede_reservar_con_una_trabajadora_inactiva() {
+            Trabajador deBaja = datos.trabajadoraInactiva("Ana");
+            datos.turno(deBaja, manana, "10:00", "14:00");
+
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, deBaja, manana.atTime(10, 0)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora seleccionada no está activa.");
+        }
+
+        @Test
+        void no_se_puede_reservar_encima_de_otra_cita() {
+            datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 30)), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El trabajador no está disponible en el horario seleccionado.");
+        }
+
+        @Test
+        void se_puede_reservar_justo_a_continuacion_de_otra_cita() {
+            datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(11, 0)), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void una_cita_cancelada_no_ocupa_el_hueco() {
+            datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(10, 0), EstadoCita.CANCELADA);
+
+            CitaDto creada = citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 0)), laura);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void servicio_inexistente() {
+            CreateCitaDto dto = reserva(manicura60, sindi, manana.atTime(10, 0));
+            dto.setIdServicio(999_999L);
+
+            assertThatThrownBy(() -> citaService.createCita(dto, laura))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Servicio no encontrado con id: 999999");
+        }
+
+        @Test
+        void trabajadora_inexistente() {
+            CreateCitaDto dto = reserva(manicura60, sindi, manana.atTime(10, 0));
+            dto.setIdTrabajador(999_999L);
+
+            assertThatThrownBy(() -> citaService.createCita(dto, laura))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Trabajador no encontrado con id: 999999");
+        }
+
+        @Test
+        void la_administracion_reserva_para_una_clienta_con_las_mismas_reglas() {
+            Usuario marta = datos.clienta("Marta");
+
+            CitaDto creada = citaService.createCitaByAdmin(reservaAdmin(marta.getId(), manana.atTime(10, 0)));
+
+            assertThat(creada.getCliente().getNombre()).isEqualTo("Marta");
+            assertThatThrownBy(() -> citaService.createCitaByAdmin(reservaAdmin(marta.getId(), manana.atTime(15, 0))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void la_administracion_con_una_clienta_inexistente() {
+            assertThatThrownBy(() -> citaService.createCitaByAdmin(reservaAdmin(999_999L, manana.atTime(10, 0))))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cliente no encontrado con id: 999999");
+        }
+
+        private AdminCreateCitaDto reservaAdmin(Long idCliente, LocalDateTime inicio) {
+            AdminCreateCitaDto dto = new AdminCreateCitaDto();
+            dto.setIdServicio(manicura60.getId());
+            dto.setIdTrabajador(sindi.getId());
+            dto.setFechaHoraInicio(inicio);
+            dto.setIdCliente(idCliente);
+            return dto;
+        }
+    }
+
+    @Nested
+    class Mover {
+
+        private final LocalDate manana = HOY.plusDays(1);
+
+        @BeforeEach
+        void turnoDeManana() {
+            datos.turno(sindi, manana, "10:00", "18:00");
+        }
+
+        @Test
+        void mueve_la_cita_a_otra_hora_servicio_y_trabajadora() {
+            Trabajador ana = datos.trabajadora("Ana");
+            datos.turno(ana, manana, "16:00", "18:00");
+            ServicioLocal retirada45 = datos.servicio("Retirada", 45);
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto movida = citaService.updateCita(cita.getId(), reserva(retirada45, ana, manana.atTime(16, 0)));
+
+            assertThat(movida.getFechaHoraInicio()).isEqualTo(manana.atTime(16, 0));
+            assertThat(movida.getFechaHoraFin()).isEqualTo(manana.atTime(16, 45));
+            assertThat(movida.getServicio().getNombre()).isEqualTo("Retirada");
+            assertThat(movida.getTrabajador().getNombre()).isEqualTo("Ana");
+            assertThat(movida.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void puede_solaparse_con_su_propio_horario_anterior() {
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto movida = citaService.updateCita(cita.getId(), reserva(manicura60, sindi, manana.atTime(10, 15)));
+
+            assertThat(movida.getFechaHoraInicio()).isEqualTo(manana.atTime(10, 15));
+        }
+
+        @Test
+        void no_se_puede_mover_encima_de_otra_cita() {
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+            datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, manana.atTime(11, 30))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
+        }
+
+        @Test
+        void no_se_puede_mover_fuera_del_turno() {
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, manana.atTime(17, 30))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void no_se_puede_mover_al_pasado() {
+            datos.turno(sindi, HOY, "08:00", "12:00");
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, HOY.atTime(8, 0))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede reservar una cita en el pasado.");
+        }
+
+        @Test
+        void no_se_puede_mover_una_cita_cancelada() {
+            Cita cancelada = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CANCELADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cancelada.getId(), reserva(manicura60, sindi, manana.atTime(12, 0))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede modificar una cita cancelada.");
+        }
+
+        @Test
+        void cita_inexistente() {
+            assertThatThrownBy(() -> citaService.updateCita(999_999L, reserva(manicura60, sindi, manana.atTime(10, 0))))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: 999999");
         }
     }
 
@@ -189,5 +464,13 @@ class CitaServiceTest {
                     .extracting(CitasPorDiaDto::getCitas)
                     .containsExactly(1L, 0L, 0L, 0L, 0L, 0L, 0L);
         }
+    }
+
+    private static CreateCitaDto reserva(ServicioLocal servicio, Trabajador trabajadora, LocalDateTime inicio) {
+        CreateCitaDto dto = new CreateCitaDto();
+        dto.setIdServicio(servicio.getId());
+        dto.setIdTrabajador(trabajadora.getId());
+        dto.setFechaHoraInicio(inicio);
+        return dto;
     }
 }
