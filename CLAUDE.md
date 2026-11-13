@@ -38,14 +38,14 @@ Configuración: copia `.env.example` a `.env` en la raíz (`.env` está en `.git
 
 Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
 - Arrancar en local: `docker compose up -d db` (MySQL en `localhost:3307`) y después `./mvnw spring-boot:run` (puerto 8080)
-- Tests: `./mvnw test` (requiere Docker Desktop abierto: Testcontainers) — **no ejecutar hasta que Testcontainers esté configurado**: el `contextLoads` actual usaría el MySQL de desarrollo
+- Tests: `./mvnw test` (requiere Docker Desktop abierto: cada ejecución levanta un MySQL desechable con Testcontainers)
 - Un test: `./mvnw test -Dtest=NombreDelTest`
 
 Frontend (desde `frontend-react/`, Node.js 26 LTS):
 - `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`, o a `VITE_PROXY_TARGET` si está definida) · `npm run build` · `npm run lint`
 - Si la terminal no encuentra `node`/`npm`, la ruta es `C:\Program Files\nodejs`.
 - npm 11 no ejecuta scripts de instalación sin aprobar (el aviso de `esbuild` es normal y no afecta).
-- Tests: `npx vitest` (watch) / `npx vitest run` (una vez) — *pendiente de instalar, ver Testing*
+- Tests: `npm test` (modo watch) / `npm run test:run` (una vez) / `npx vitest run ruta/al/archivo.test.jsx`
 
 Todo junto: `docker compose up --build` → http://localhost
 
@@ -59,8 +59,9 @@ Todo junto: `docker compose up --build` → http://localhost
 4. ~~CORS ligado a Railway y frontend local sin acceso al backend~~: **resuelto** (orígenes en `CORS_ALLOWED_ORIGINS` y proxy `/api` en Vite). ~~`authService.js` con URL a pelo~~: era código muerto, eliminado.
 5. El token JWT se guarda en `localStorage`.
 6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`).
-7. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
-8. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
+7. **`AuthContext` registra un interceptor de axios nuevo en cada render.** `logout` se crea de nuevo en cada render y está en las dependencias del `useEffect` que llama a `setupInterceptors`, así que los interceptores se acumulan y nunca se eliminan. Hay que caracterizarlo antes de corregirlo.
+8. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
+9. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
 
 No te conectes a la base de datos antigua de Railway ni a ningún servicio remoto. Todo se ejecuta contra el MySQL de docker en local.
 
@@ -106,13 +107,17 @@ Herramientas integradas: `/code-review` antes de cerrar cada fase y `/security-r
 ## Testing
 
 **Backend — JUnit 5 + Spring Boot Test + Testcontainers (MySQL 8)**
-- Las dependencias de Testcontainers están **pendientes de añadir** al `pom.xml`.
-- Los tests de integración usan un MySQL real en un contenedor desechable, nunca el MySQL de desarrollo ni ninguna base de datos remota.
+- Todo test de Spring lleva `@ActiveProfiles("test")` + `@Import(TestcontainersConfiguration.class)`. Así usa un MySQL 8 desechable (`@ServiceConnection`) y los valores fijos de `src/test/resources/application-test.properties` (incluido un secreto JWT solo para tests). No depende del `.env`.
+- Los tests de integración nunca usan el MySQL de desarrollo ni ninguna base de datos remota. La base de datos del contenedor empieza vacía (sin `dump.sql`): cada test crea sus propios datos.
+- `testcontainers.version` está fijada a 1.21.4 en el `pom.xml`, porque la 1.21.3 que trae Spring Boot no funciona con Docker Engine 29. No la quites al actualizar Spring Boot salvo que este ya traiga una versión igual o superior.
 - Prioridad de caracterización: `CitaService` (disponibilidad de horarios, días no disponibles, solapes con turnos y ausencias, cancelación), autenticación/JWT y permisos por rol (`/api/admin/**` solo para ADMIN).
 - Para endpoints: `@SpringBootTest` + MockMvc, comprobando estado HTTP, cuerpo JSON y seguridad (401/403).
 
 **Frontend — Vitest + jsdom + @testing-library/react + user-event**
-- **Pendiente de instalar** (con MSW para simular la API).
+- Configurado en `vite.config.js` (bloque `test`). El setup común está en `src/test/setup.js`: matchers de jest-dom, `cleanup()` y `localStorage.clear()` tras cada test. Los imports de Vitest son explícitos (`import { describe, it, expect } from "vitest"`), sin globals.
+- Para simular la API se usará MSW, que se instalará con el primer test que lo necesite. No se hacen mocks de `apiClient` ni de axios.
+- Usa los providers reales (`AuthProvider`, `createMemoryRouter`) en vez de hacer mocks de hooks como `useAuth`.
+- Comprueba que cada test nuevo puede fallar: rompe temporalmente el código, mira el test en rojo y restaura.
 - Las skills `front-end-testing` y `react-testing` recomiendan Vitest Browser Mode. **En este proyecto se usa jsdom**: sigue sus patrones de la variante Testing Library (en `resources/*-legacy.md`) y su filosofía (consultas por rol/label, interacciones de usuario reales, nada de detalles de implementación).
 - Playwright E2E queda para más adelante, solo para los flujos críticos (registro → login → reservar cita; admin gestiona una cita).
 - Los tests van junto al componente: `Componente.test.jsx`.
