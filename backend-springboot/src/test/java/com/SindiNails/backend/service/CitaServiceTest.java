@@ -448,6 +448,28 @@ class CitaServiceTest {
         }
 
         @Test
+        void a_un_servicio_inexistente() {
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+            CreateCitaDto dto = reserva(manicura60, sindi, manana.atTime(12, 0));
+            dto.setIdServicio(999_999L);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), dto))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Servicio no encontrado con id: 999999");
+        }
+
+        @Test
+        void a_una_trabajadora_inexistente() {
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+            CreateCitaDto dto = reserva(manicura60, sindi, manana.atTime(12, 0));
+            dto.setIdTrabajador(999_999L);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), dto))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Trabajador no encontrado con id: 999999");
+        }
+
+        @Test
         void cita_inexistente() {
             assertThatThrownBy(() -> citaService.updateCita(999_999L, reserva(manicura60, sindi, manana.atTime(10, 0))))
                     .isExactlyInstanceOf(ResourceNotFoundException.class)
