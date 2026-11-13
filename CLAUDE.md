@@ -34,6 +34,8 @@ Alias `@/` → `frontend-react/src/`.
 
 ## Comandos
 
+Equipo nuevo: sigue `INSTALACION.md` (programas, `.env`, skills y primer arranque).
+
 Configuración: copia `.env.example` a `.env` en la raíz (`.env` está en `.gitignore`). Lo leen tanto docker compose como el backend (`spring.config.import`).
 
 Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
