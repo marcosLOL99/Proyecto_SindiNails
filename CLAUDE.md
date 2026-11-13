@@ -40,6 +40,7 @@ Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
 - Arrancar en local: `docker compose up -d db` (MySQL en `localhost:3307`) y después `./mvnw spring-boot:run` (puerto 8080)
 - Tests: `./mvnw test` (requiere Docker Desktop abierto: cada ejecución levanta un MySQL desechable con Testcontainers)
 - Un test: `./mvnw test -Dtest=NombreDelTest`
+- Mutation testing (PIT, al cierre de fase): `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.SindiNails.backend.service.CitaService` (varias clases separadas por comas). Informe en `target/pit-reports/index.html`. Tarda unos 3 minutos por los tests con Testcontainers.
 
 Frontend (desde `frontend-react/`, Node.js 26 LTS):
 - `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`) · `npm run build` · `npm run lint`
