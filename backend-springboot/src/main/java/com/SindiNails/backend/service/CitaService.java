@@ -130,8 +130,16 @@ public class CitaService {
             throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
         }
 
-        // 2. Verificar la regla de las 12 horas
+        if (cita.getEstado() == EstadoCita.CANCELADA) {
+            throw new IllegalStateException("La cita ya está cancelada.");
+        }
+
         LocalDateTime ahora = LocalDateTime.now(clock);
+        if (cita.getFechaHoraInicio().isBefore(ahora)) {
+            throw new IllegalStateException("No se puede cancelar una cita que ya ha pasado.");
+        }
+
+        // 2. Verificar la regla de las 12 horas
         LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
         if (ahora.isAfter(limiteCancelacion)) {
             throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");

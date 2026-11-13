@@ -2,10 +2,13 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
 import com.SindiNails.backend.dto.CitasPorDiaDto;
+import com.SindiNails.backend.exception.ResourceNotFoundException;
+import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.EstadoCita;
 import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Usuario;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.support.DatosDePrueba;
 import com.SindiNails.backend.support.RelojFijo;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,8 +21,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 /**
@@ -36,6 +41,7 @@ class CitaServiceTest {
 
     @Autowired CitaService citaService;
     @Autowired DatosDePrueba datos;
+    @Autowired RepositorioCita repositorioCita;
 
     private Trabajador sindi;
     private ServicioLocal manicura60;
@@ -84,6 +90,75 @@ class CitaServiceTest {
             datos.turno(sindi, ayer, "09:00", "12:00");
 
             assertThat(citaService.getHorariosDisponibles(sindi.getId(), manicura60.getId(), ayer)).isEmpty();
+        }
+    }
+
+    @Nested
+    class Cancelar {
+
+        private static final LocalDateTime AHORA = RelojFijo.AHORA;
+
+        @Test
+        void la_clienta_cancela_su_cita_con_mas_de_12_horas_de_antelacion() {
+            Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusHours(12).plusMinutes(1), EstadoCita.CONFIRMADA);
+
+            citaService.cancelarCita(cita.getId(), laura);
+
+            assertThat(repositorioCita.findById(cita.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void se_puede_cancelar_justo_12_horas_antes() {
+            Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusHours(12), EstadoCita.CONFIRMADA);
+
+            citaService.cancelarCita(cita.getId(), laura);
+
+            assertThat(repositorioCita.findById(cita.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void no_se_puede_cancelar_con_menos_de_12_horas_de_antelacion() {
+            Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusHours(12).minusMinutes(1), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        @Test
+        void no_se_puede_cancelar_una_cita_que_ya_ha_pasado() {
+            Cita cita = datos.cita(laura, sindi, manicura60, AHORA.minusDays(2), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede cancelar una cita que ya ha pasado.");
+        }
+
+        @Test
+        void no_se_puede_cancelar_una_cita_ya_cancelada() {
+            Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusDays(3), EstadoCita.CANCELADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("La cita ya está cancelada.");
+        }
+
+        @Test
+        void una_clienta_no_puede_cancelar_la_cita_de_otra() {
+            Usuario marta = datos.clienta("Marta");
+            Cita cita = datos.cita(marta, sindi, manicura60, AHORA.plusDays(3), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No tienes permiso para cancelar esta cita.");
+            assertThat(repositorioCita.findById(cita.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void cancelar_una_cita_que_no_existe() {
+            assertThatThrownBy(() -> citaService.cancelarCita(999_999L, laura))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: 999999");
         }
     }
 
