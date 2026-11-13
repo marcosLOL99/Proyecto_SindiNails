@@ -21,7 +21,7 @@ public interface RepositorioCita extends JpaRepository<Cita, Long> {
 
     @Query("SELECT new map(function('DATE', c.fechaHoraInicio) as fecha, count(c.id) as cantidad) " +
            "FROM Cita c " +
-           "WHERE c.fechaHoraInicio >= :fechaInicio " +
+           "WHERE c.fechaHoraInicio >= :fechaInicio AND c.estado != 'CANCELADA' " +
            "GROUP BY function('DATE', c.fechaHoraInicio)")
     List<java.util.Map<String, Object>> countCitasFromDate(@Param("fechaInicio") LocalDateTime fechaInicio);
 }

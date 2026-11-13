@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +38,7 @@ public class CitaService {
     private final RepositorioUsuario repositorioUsuario;
     private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
     private final RepositorioTurno turnoRepository;
+    private final Clock clock;
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
@@ -50,6 +52,7 @@ public class CitaService {
 
         LocalDateTime fechaHoraInicio = createCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
+        validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
 
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadas(trabajador.getId(), fechaHoraInicio,
                 fechaHoraFin);
@@ -83,6 +86,9 @@ public class CitaService {
     public CitaDto updateCita(Long citaId, CreateCitaDto updateCitaDto) {
         Cita citaExistente = repositorioCita.findById(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
+        if (citaExistente.getEstado() == EstadoCita.CANCELADA) {
+            throw new IllegalStateException("No se puede modificar una cita cancelada.");
+        }
 
         ServicioLocal servicio = repositorioServicios.findById(updateCitaDto.getIdServicio())
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -94,6 +100,12 @@ public class CitaService {
 
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
+        // Si la hora de inicio no cambia, es una corrección (servicio, trabajadora) y no una cita nueva en otro
+        // horario: se permite aunque la cita ya haya pasado o la trabajadora ya no tenga turno. El solape sí se comprueba.
+        boolean cambiaLaHora = !fechaHoraInicio.equals(citaExistente.getFechaHoraInicio());
+        if (cambiaLaHora) {
+            validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
+        }
 
         // Validar disponibilidad excluyendo la propia cita que se está actualizando
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(),
@@ -109,6 +121,37 @@ public class CitaService {
 
         Cita citaActualizada = repositorioCita.save(citaExistente);
         return convertToDto(citaActualizada);
+    }
+
+    /**
+     * Reglas comunes para reservar o mover una cita: no en el pasado, con una trabajadora activa,
+     * dentro de uno de sus turnos de ese día y sin pisar ausencias ni bloqueos globales.
+     * Los solapes con otras citas se comprueban aparte (create y update usan consultas distintas).
+     */
+    private void validarHorarioReservable(Trabajador trabajador, LocalDateTime inicio, LocalDateTime fin) {
+        if (inicio.isBefore(LocalDateTime.now(clock))) {
+            throw new IllegalStateException("No se puede reservar una cita en el pasado.");
+        }
+        if (!trabajador.isActivo()) {
+            throw new IllegalStateException("La trabajadora seleccionada no está activa.");
+        }
+
+        boolean dentroDeUnTurno = inicio.toLocalDate().equals(fin.toLocalDate())
+                && turnoRepository.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(trabajador.getId(), inicio.toLocalDate())
+                        .stream()
+                        .anyMatch(turno -> !inicio.toLocalTime().isBefore(turno.getHoraInicio())
+                                && !fin.toLocalTime().isAfter(turno.getHoraFin()));
+        if (!dentroDeUnTurno) {
+            throw new IllegalStateException("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        boolean bloqueado = !periodoNoDisponibleRepository
+                .findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, fin, inicio).isEmpty()
+                || !periodoNoDisponibleRepository
+                .findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajador.getId(), fin, inicio).isEmpty();
+        if (bloqueado) {
+            throw new IllegalStateException("El horario seleccionado está bloqueado.");
+        }
     }
 
     public void deleteCita(Long citaId) {
@@ -128,8 +171,16 @@ public class CitaService {
             throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
         }
 
+        if (cita.getEstado() == EstadoCita.CANCELADA) {
+            throw new IllegalStateException("La cita ya está cancelada.");
+        }
+
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        if (cita.getFechaHoraInicio().isBefore(ahora)) {
+            throw new IllegalStateException("No se puede cancelar una cita que ya ha pasado.");
+        }
+
         // 2. Verificar la regla de las 12 horas
-        LocalDateTime ahora = LocalDateTime.now();
         LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
         if (ahora.isAfter(limiteCancelacion)) {
             throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
@@ -155,10 +206,13 @@ public class CitaService {
     }
 
     public List<String> getHorariosDisponibles(Long trabajadorId, Long servicioId, LocalDate fecha) {
-        repositorioTrabajador.findById(trabajadorId)
+        Trabajador trabajador = repositorioTrabajador.findById(trabajadorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId));
         ServicioLocal servicio = repositorioServicios.findById(servicioId)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + servicioId));
+        if (!trabajador.isActivo()) {
+            return new ArrayList<>();
+        }
 
         final int DURACION_SERVICIO = servicio.getDuracionEnMinutos();
         final int INTERVALO_MINUTOS = 15;
@@ -175,22 +229,24 @@ public class CitaService {
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo.GLOBAL, finDelDia, inicioDelDia));
         bloqueosDelDia.addAll(periodoNoDisponibleRepository.findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajadorId, finDelDia, inicioDelDia));
 
+        LocalDateTime ahora = LocalDateTime.now(clock);
         List<String> horariosDisponibles = new ArrayList<>();
         for (LocalTime[] interval : workingIntervals) {
-            LocalTime horaActual = interval[0];
-            LocalTime finIntervalo = interval[1];
+            // Se recorre con fecha y hora completas: con LocalTime, pasar de las 23:59 daría la vuelta a las 00:00.
+            LocalDateTime posibleInicio = fecha.atTime(interval[0]);
+            LocalDateTime finIntervalo = fecha.atTime(interval[1]);
 
-            while (!horaActual.plusMinutes(DURACION_SERVICIO).isAfter(finIntervalo)) {
-                LocalDateTime posibleInicio = fecha.atTime(horaActual);
+            while (!posibleInicio.plusMinutes(DURACION_SERVICIO).isAfter(finIntervalo)) {
                 LocalDateTime posibleFin = posibleInicio.plusMinutes(DURACION_SERVICIO);
 
                 boolean estaSolapado = isOverlapping(posibleInicio, posibleFin, citasDelDia, bloqueosDelDia);
+                boolean yaHaPasado = posibleInicio.isBefore(ahora);
 
-                if (!estaSolapado) {
-                    horariosDisponibles.add(horaActual.format(DateTimeFormatter.ofPattern("HH:mm")));
+                if (!estaSolapado && !yaHaPasado) {
+                    horariosDisponibles.add(posibleInicio.format(DateTimeFormatter.ofPattern("HH:mm")));
                 }
 
-                horaActual = horaActual.plusMinutes(INTERVALO_MINUTOS);
+                posibleInicio = posibleInicio.plusMinutes(INTERVALO_MINUTOS);
             }
         }
         return horariosDisponibles;
@@ -199,7 +255,7 @@ public class CitaService {
     private List<LocalTime[]> getWorkingIntervalsForDay(Long trabajadorId, LocalDate fecha) {
         // La lógica correcta es simplemente devolver los turnos asignados al trabajador para esa fecha.
         // El cálculo de intersección con el horario del negocio era incorrecto y la causa del error.
-        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFecha(trabajadorId, fecha);
+        List<Turno> turnos = turnoRepository.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(trabajadorId, fecha);
         return turnos.stream()
                 .map(t -> new LocalTime[]{t.getHoraInicio(), t.getHoraFin()})
                 .collect(Collectors.toList());
@@ -227,7 +283,7 @@ public class CitaService {
 
         for (int i = 0; i < 42; i++) {
             LocalDate fechaActual = fechaInicioRango.plusDays(i);
-            if (fechaActual.isBefore(LocalDate.now())) {
+            if (fechaActual.isBefore(LocalDate.now(clock))) {
                 diasNoDisponibles.add(fechaActual);
             } else if (getHorariosDisponibles(trabajadorId, servicioId, fechaActual).isEmpty()) {
                 diasNoDisponibles.add(fechaActual);
@@ -237,7 +293,7 @@ public class CitaService {
     }
 
     public List<CitasPorDiaDto> getCitasUltimaSemana() {
-        LocalDate hoy = LocalDate.now();
+        LocalDate hoy = LocalDate.now(clock);
         LocalDateTime fechaInicio = hoy.minusDays(6).atStartOfDay();
 
         List<Map<String, Object>> resultadosDb = repositorioCita.countCitasFromDate(fechaInicio);

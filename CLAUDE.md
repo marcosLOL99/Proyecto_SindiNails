@@ -40,12 +40,14 @@ Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
 - Arrancar en local: `docker compose up -d db` (MySQL en `localhost:3307`) y después `./mvnw spring-boot:run` (puerto 8080)
 - Tests: `./mvnw test` (requiere Docker Desktop abierto: cada ejecución levanta un MySQL desechable con Testcontainers)
 - Un test: `./mvnw test -Dtest=NombreDelTest`
+- Mutation testing (PIT, al cierre de fase): `./mvnw test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.SindiNails.backend.service.CitaService` (varias clases separadas por comas). Informe en `target/pit-reports/index.html`. Tarda unos 3 minutos por los tests con Testcontainers.
 
 Frontend (desde `frontend-react/`, Node.js 26 LTS):
 - `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`) · `npm run build` · `npm run lint`
 - Si la terminal no encuentra `node`/`npm`, la ruta es `C:\Program Files\nodejs`.
 - npm 11 no ejecuta scripts de instalación sin aprobar (el aviso de `esbuild` es normal y no afecta).
 - Tests: `npm test` (modo watch) / `npm run test:run` (una vez) / `npx vitest run ruta/al/archivo.test.jsx`
+- Mutation testing (StrykerJS, al cierre de fase): `npm run test:mutation -- --mutate src/components/CitaForm.jsx` (admite rango de líneas: `archivo.jsx:79-105`). Configuración en `stryker.config.json`; informe en `reports/mutation/mutation.html`. Sin `--mutate` muta todo `src/` salvo tests y `components/ui/` (tarda mucho).
 
 Todo junto: `docker compose up --build` → http://localhost
 
@@ -58,12 +60,27 @@ Todo junto: `docker compose up --build` → http://localhost
 3. **Sin token, el backend responde 403 en vez de 401**, y **un login con credenciales incorrectas también devuelve 403**. Pero el interceptor de `router/api.js` solo cierra la sesión con 401, así que un token caducado no devuelve al usuario al login. Es un comportamiento actual: caracterízalo antes de corregirlo.
 4. ~~CORS ligado a Railway y frontend local sin acceso al backend~~: **resuelto** (orígenes en `CORS_ALLOWED_ORIGINS` y proxy `/api` en Vite). ~~`authService.js` con URL a pelo~~: era código muerto, eliminado.
 5. El token JWT se guarda en `localStorage`.
-6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`).
+6. No hay manejo global de errores en el backend (no existe `@ControllerAdvice`). Las reglas de negocio lanzan `IllegalStateException`, que llega al cliente como **500 sin el mensaje**, así que el frontend muestra un error genérico en vez de, por ejemplo, "La cita ya está cancelada.".
+6b. ~~Desfase horario en el panel de administración~~: **resuelto**. `CitaForm.jsx` enviaba la hora con `toISOString()` (las 10:00 llegaban como `09:00:00.000Z`); ahora envía la hora local sin zona (`yyyy-MM-ddTHH:mm:ss`), igual que la reserva de clientas. Fijado en `CitaForm.test.jsx`.
 7. **`AuthContext` registra un interceptor de axios nuevo en cada render.** `logout` se crea de nuevo en cada render y está en las dependencias del `useEffect` que llama a `setupInterceptors`, así que los interceptores se acumulan y nunca se eliminan. Hay que caracterizarlo antes de corregirlo.
+7b. **Reservas simultáneas:** `createCita` y `updateCita` comprueban el solape y después guardan, sin bloqueo ni restricción en la base de datos. Dos reservas del mismo hueco a la vez quedan confirmadas las dos. Pendiente: test con dos reservas en paralelo y corregirlo con `tdd` (bloqueo por trabajadora o restricción).
 8. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
 9. Detalles menores: `RopositorioPeriodoNoDisp` (errata); `tailwind.config.cjs` usa `export default` (sintaxis ESM) con extensión `.cjs`, y `components.json` apunta a `tailwind.config.js`; `README.md` está en UTF-16.
 
 No te conectes a la base de datos antigua de Railway ni a ningún servicio remoto. Todo se ejecuta contra el MySQL de docker en local.
+
+### Reglas de negocio de las citas (`CitaService`)
+
+Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFijo`). "Ahora" es la hora del salón: el `Clock` de `ClockConfig` usa `app.zona-horaria` (`Europe/Madrid`), no la zona del sistema (en docker la JVM está en UTC). Citas y turnos se guardan como hora local del salón. Los bugs S1–S7 encontrados al caracterizar en la Fase 1 se corrigieron así:
+
+- **Reservar o mover una cita** (también la administración): no en el pasado; trabajadora activa; la cita entera dentro de uno de sus turnos de ese día; sin pisar ausencias de la trabajadora ni bloqueos globales; sin solaparse con otra cita no cancelada. No hace falta empezar en un cuarto de hora. Una cita cancelada no se puede mover. **Excepción:** si la administración edita una cita sin cambiar su hora de inicio (corregir servicio o trabajadora), no se aplican las reglas de horario (pasado, activa, turno, ausencias), así se pueden corregir citas pasadas; el solape con otras citas sí se comprueba siempre.
+- **Huecos libres**: cada 15 minutos dentro de los turnos, ordenados por hora; nunca huecos que ya han pasado; ninguno para una trabajadora inactiva; con turnos que acaban cerca de medianoche, solo huecos que terminan ese mismo día (antes el cálculo daba la vuelta a las 00:00 y no terminaba nunca).
+- **Cancelar** (clienta): solo la dueña, con 12 horas o más de antelación (justo 12 h vale); no una cita ya cancelada ni una que ya ha pasado (cada caso con su mensaje).
+- **Resumen semanal del panel**: últimos 7 días (desde hace 6 días a las 00:00), sin contar las canceladas.
+
+Lo que todavía no tiene test permanente sigue en `CitaServiceCharacterisationTest` (huecos con citas y bloqueos, días no disponibles, borrar, listados): se sustituirá al refactorizar `CitaService`.
+
+Notas de diseño para el refactor: la regla "el hueco cabe en un turno y no pisa ausencias, bloqueos ni citas" está escrita dos veces, en `validarHorarioReservable` (al reservar) y en `getHorariosDisponibles` + `isOverlapping` (al ofrecer huecos); conviene una sola comprobación para que lo que se ofrece y lo que se acepta no se separen; `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada; `createCita` y `updateCita` repiten la carga de servicio y trabajadora y el cálculo del fin.
 
 ---
 
@@ -91,7 +108,7 @@ Herramientas integradas: `/code-review` antes de cerrar cada fase y `/security-r
 - **Evaluación del refactor:** antes de editar, lista los candidatos con `Critical:` / `High:` / `Nice:` / `Skip:` y termina con `Decision:` (formato de la skill `refactoring`).
 - **DRY se aplica al conocimiento, no al código que se parece.** Dos reglas de negocio que hoy coinciden (por ejemplo, la duración de dos servicios) no se fusionan.
 - **Nada especulativo:** no añadas validaciones, abstracciones ni funcionalidades que ningún test o requisito pida.
-- **Mutation testing al cierre de cada fase**, no tras cada paso: PIT en el backend y StrykerJS en el frontend. Se instalan al cerrar la primera fase. Mientras no existan, indica `N/A` y qué otra prueba lo respalda.
+- **Mutation testing al cierre de cada fase**, no tras cada paso: PIT en el backend y StrykerJS en el frontend (instalados al cerrar la Fase 1; comandos en "Comandos"). Se ejecutan sobre el código cambiado en la fase. Los mutantes equivalentes (que ningún test puede distinguir) se anotan y no se persiguen.
 
 ### Rediseño visual
 
@@ -115,7 +132,8 @@ Herramientas integradas: `/code-review` antes de cerrar cada fase y `/security-r
 
 **Frontend — Vitest + jsdom + @testing-library/react + user-event**
 - Configurado en `vite.config.js` (bloque `test`). El setup común está en `src/test/setup.js`: matchers de jest-dom, `cleanup()` y `localStorage.clear()` tras cada test. Los imports de Vitest son explícitos (`import { describe, it, expect } from "vitest"`), sin globals.
-- Para simular la API se usará MSW, que se instalará con el primer test que lo necesite. No se hacen mocks de `apiClient` ni de axios.
+- La API se simula con MSW (`msw/node`, `setupServer`, rutas con `*/api/...`); ejemplo en `components/CitaForm.test.jsx`. No se hacen mocks de `apiClient` ni de axios.
+- Los tests del frontend se ejecutan con `TZ=Europe/Madrid` (bloque `test.env` de `vite.config.js`), así las fechas no dependen del equipo.
 - Usa los providers reales (`AuthProvider`, `createMemoryRouter`) en vez de hacer mocks de hooks como `useAuth`.
 - Comprueba que cada test nuevo puede fallar: rompe temporalmente el código, mira el test en rojo y restaura.
 - Las skills `front-end-testing` y `react-testing` recomiendan Vitest Browser Mode. **En este proyecto se usa jsdom**: sigue sus patrones de la variante Testing Library (en `resources/*-legacy.md`) y su filosofía (consultas por rol/label, interacciones de usuario reales, nada de detalles de implementación).

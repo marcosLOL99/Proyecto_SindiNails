@@ -136,6 +136,36 @@
 					</excludes>
 				</configuration>
 			</plugin>
+			<!-- Mutation testing (PIT). No va ligado a ningún ciclo de Maven: se ejecuta al cerrar cada fase.
+			     ./mvnw test-compile org.pitest:pitest-maven:mutationCoverage -DtargetClasses=com.SindiNails.backend.service.CitaService
+			     Informe en target/pit-reports/index.html. Requiere Docker Desktop (los tests usan Testcontainers). -->
+			<plugin>
+				<groupId>org.pitest</groupId>
+				<artifactId>pitest-maven</artifactId>
+				<version>1.30.2</version>
+				<dependencies>
+					<dependency>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-junit5-plugin</artifactId>
+						<version>1.2.3</version>
+					</dependency>
+				</dependencies>
+				<configuration>
+					<targetClasses>
+						<param>com.SindiNails.backend.*</param>
+					</targetClasses>
+					<targetTests>
+						<param>com.SindiNails.backend.*</param>
+					</targetTests>
+					<!-- Un solo hilo: cada hilo levantaría su propio MySQL con Testcontainers. -->
+					<threads>1</threads>
+					<timestampedReports>false</timestampedReports>
+					<outputFormats>
+						<param>HTML</param>
+						<param>XML</param>
+					</outputFormats>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
