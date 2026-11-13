@@ -1,0 +1,634 @@
+package com.SindiNails.backend.service;
+
+import com.SindiNails.backend.TestcontainersConfiguration;
+import com.SindiNails.backend.dto.AdminCreateCitaDto;
+import com.SindiNails.backend.dto.CitaDto;
+import com.SindiNails.backend.dto.CitasPorDiaDto;
+import com.SindiNails.backend.dto.CreateCitaDto;
+import com.SindiNails.backend.exception.ResourceNotFoundException;
+import com.SindiNails.backend.model.*;
+import com.SindiNails.backend.repository.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
+
+/**
+ * CHARACTERISATION TESTS -- documentan el comportamiento ACTUAL de CitaService, NO lo que debería hacer.
+ *
+ * Fijan lo que el código hace hoy (incluidas las consultas JPQL contra un MySQL real) para poder
+ * refactorizarlo con seguridad. Los casos marcados como SUSPICIOUS parecen bugs: se documentan
+ * tal cual y se decide con el usuario si se corrigen (con TDD, como cambio de comportamiento aparte).
+ *
+ * Son temporales: se sustituirán por tests de comportamiento cuando CitaService se refactorice.
+ * Ver la skill characterisation-tests.
+ *
+ * Las fechas son relativas a hoy (el servicio usa LocalDate.now()/LocalDateTime.now() sin Clock inyectable).
+ * La clase es @Transactional: cada test se revierte y la sesión JPA queda abierta, igual que en una
+ * petición HTTP real (open-in-view), necesario porque convertToDto recorre relaciones LAZY.
+ */
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestcontainersConfiguration.class)
+@Transactional
+class CitaServiceCharacterisationTest {
+
+    /** Un día cualquiera dentro de un año: siempre futuro, sin depender de la fecha de ejecución. */
+    private static final LocalDate FECHA = LocalDate.now().plusYears(1);
+
+    @Autowired CitaService citaService;
+    @Autowired RepositorioCita repositorioCita;
+    @Autowired RepositorioTrabajador repositorioTrabajador;
+    @Autowired RepositorioServicios repositorioServicios;
+    @Autowired RepositorioTipoServicio repositorioTipoServicio;
+    @Autowired RepositorioUsuario repositorioUsuario;
+    @Autowired RepositorioTurno repositorioTurno;
+    @Autowired RopositorioPeriodoNoDisp repositorioPeriodos;
+
+    private Trabajador trabajadora;
+    private Trabajador otraTrabajadora;
+    private ServicioLocal servicio60;
+    private ServicioLocal servicio45;
+    private Usuario clienta;
+    private Usuario otraClienta;
+
+    @BeforeEach
+    void datosBase() {
+        TipoServicio manicura = new TipoServicio();
+        manicura.setNombre("Manicura");
+        repositorioTipoServicio.save(manicura);
+
+        servicio60 = servicio("Semipermanente", 25.5, 60, manicura);
+        servicio45 = servicio("Retirada", 10.0, 45, manicura);
+        trabajadora = repositorioTrabajador.save(Trabajador.builder().nombre("Sindi").apellidos("García").build());
+        otraTrabajadora = repositorioTrabajador.save(Trabajador.builder().nombre("Ana").apellidos("López").build());
+        clienta = usuario("Laura");
+        otraClienta = usuario("Marta");
+    }
+
+    // ---------------------------------------------------------------- getHorariosDisponibles
+
+    @Nested
+    class HorariosDisponibles {
+
+        @Test
+        void characterises_sin_turno_ese_dia() {
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .isEmpty();
+        }
+
+        @Test
+        void characterises_turno_de_10_a_12_con_servicio_de_60_min() {
+            turno(trabajadora, FECHA, "10:00", "12:00");
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("10:00", "10:15", "10:30", "10:45", "11:00");
+        }
+
+        @Test
+        void characterises_turno_de_10_a_12_con_servicio_de_45_min() {
+            turno(trabajadora, FECHA, "10:00", "12:00");
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio45.getId(), FECHA))
+                    .containsExactly("10:00", "10:15", "10:30", "10:45", "11:00", "11:15");
+        }
+
+        @Test
+        void characterises_dos_turnos_partidos_SUSPICIOUS_huecos_sin_ordenar() {
+            turno(trabajadora, FECHA, "16:00", "18:00");
+            turno(trabajadora, FECHA, "09:00", "11:00");
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly(
+                    "16:00", "16:15", "16:30", "16:45", "17:00", "09:00", "09:15", "09:30", "09:45", "10:00");
+        }
+
+        @Test
+        void characterises_cita_confirmada_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+            cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 30), EstadoCita.CONFIRMADA);
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("11:30", "11:45", "12:00");
+        }
+
+        @Test
+        void characterises_cita_cancelada_no_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+            cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 30), EstadoCita.CANCELADA);
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly(
+                    "10:00", "10:15", "10:30", "10:45", "11:00", "11:15", "11:30", "11:45", "12:00");
+        }
+
+        @Test
+        void characterises_cita_de_otra_trabajadora_no_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "12:00");
+            cita(clienta, otraTrabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("10:00", "10:15", "10:30", "10:45", "11:00");
+        }
+
+        @Test
+        void characterises_ausencia_de_la_trabajadora_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+            bloqueo(TipoBloqueo.TRABAJADOR, trabajadora, FECHA.atTime(11, 0), FECHA.atTime(12, 0));
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("10:00", "12:00");
+        }
+
+        @Test
+        void characterises_bloqueo_global_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+            bloqueo(TipoBloqueo.GLOBAL, null, FECHA.atTime(10, 0), FECHA.atTime(11, 0));
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("11:00", "11:15", "11:30", "11:45", "12:00");
+        }
+
+        @Test
+        void characterises_ausencia_de_otra_trabajadora_no_ocupa_huecos() {
+            turno(trabajadora, FECHA, "10:00", "12:00");
+            bloqueo(TipoBloqueo.TRABAJADOR, otraTrabajadora, FECHA.atTime(10, 0), FECHA.atTime(12, 0));
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("10:00", "10:15", "10:30", "10:45", "11:00");
+        }
+
+        @Test
+        void characterises_ausencia_de_varios_dias_que_cubre_el_dia_entero() {
+            turno(trabajadora, FECHA, "10:00", "12:00");
+            bloqueo(TipoBloqueo.TRABAJADOR, trabajadora, FECHA.minusDays(1).atTime(0, 0), FECHA.plusDays(1).atTime(0, 0));
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), FECHA))
+                    .isEmpty();
+        }
+
+        @Test
+        void characterises_trabajadora_inactiva_SUSPICIOUS() {
+            Trabajador inactiva = repositorioTrabajador.save(
+                    Trabajador.builder().nombre("Baja").apellidos("Inactiva").activo(false).build());
+            turno(inactiva, FECHA, "10:00", "11:00");
+
+            assertThat(citaService.getHorariosDisponibles(inactiva.getId(), servicio60.getId(), FECHA))
+                    .containsExactly("10:00");
+        }
+
+        @Test
+        void characterises_hoy_con_un_turno_que_ya_ha_pasado_SUSPICIOUS() {
+            LocalTime ahora = LocalTime.now();
+            assumeTrue(ahora.isAfter(LocalTime.of(1, 5)), "El turno 00:00-01:00 tiene que haber terminado ya");
+            LocalDate hoy = LocalDate.now();
+            turno(trabajadora, hoy, "00:00", "01:00");
+
+            assertThat(citaService.getHorariosDisponibles(trabajadora.getId(), servicio60.getId(), hoy))
+                    .containsExactly("00:00");
+        }
+
+        @Test
+        void characterises_trabajadora_inexistente() {
+            assertThatThrownBy(() -> citaService.getHorariosDisponibles(999_999L, servicio60.getId(), FECHA))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Trabajador no encontrado con id: 999999");
+        }
+
+        @Test
+        void characterises_servicio_inexistente() {
+            assertThatThrownBy(() -> citaService.getHorariosDisponibles(trabajadora.getId(), 999_999L, FECHA))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Servicio no encontrado con id: 999999");
+        }
+    }
+
+    // ---------------------------------------------------------------- getDiasNoDisponibles
+
+    @Nested
+    class DiasNoDisponibles {
+
+        @Test
+        void characterises_mes_futuro_con_turno_solo_los_dias_1_y_2() {
+            LocalDate primero = FECHA.withDayOfMonth(1);
+            turno(trabajadora, primero, "10:00", "12:00");
+            turno(trabajadora, primero.plusDays(1), "10:00", "12:00");
+
+            List<LocalDate> noDisponibles = citaService.getDiasNoDisponibles(
+                    trabajadora.getId(), servicio60.getId(), primero.getYear(), primero.getMonthValue());
+
+            assertThat(noDisponibles).hasSize(40);
+            assertThat(diasDisponiblesDeLaRejilla(primero, noDisponibles)).containsExactly(primero, primero.plusDays(1));
+            assertThat(noDisponibles).isSorted();
+        }
+
+        @Test
+        void characterises_mes_pasado_con_turnos() {
+            LocalDate primero = LocalDate.now().minusMonths(3).withDayOfMonth(1);
+            turno(trabajadora, primero.plusDays(9), "10:00", "12:00");
+
+            List<LocalDate> noDisponibles = citaService.getDiasNoDisponibles(
+                    trabajadora.getId(), servicio60.getId(), primero.getYear(), primero.getMonthValue());
+
+            assertThat(noDisponibles).hasSize(42);
+        }
+
+        @Test
+        void characterises_servicio_inexistente_en_mes_futuro() {
+            LocalDate primero = FECHA.withDayOfMonth(1);
+
+            assertThatThrownBy(() -> citaService.getDiasNoDisponibles(
+                    trabajadora.getId(), 999_999L, primero.getYear(), primero.getMonthValue()))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Servicio no encontrado con id: 999999");
+        }
+
+        /** Días de la rejilla de 42 días (desde el lunes de la semana del día 1) que NO están en la lista. */
+        private List<LocalDate> diasDisponiblesDeLaRejilla(LocalDate primero, List<LocalDate> noDisponibles) {
+            LocalDate inicioRejilla = primero.with(DayOfWeek.MONDAY);
+            return IntStream.range(0, 42).mapToObj(inicioRejilla::plusDays)
+                    .filter(d -> !noDisponibles.contains(d))
+                    .collect(Collectors.toList());
+        }
+    }
+
+    // ---------------------------------------------------------------- createCita / createCitaByAdmin
+
+    @Nested
+    class CrearCita {
+
+        @Test
+        void characterises_cita_creada() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+
+            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
+
+            assertThat(resumen(creada)).isEqualTo(
+                    "estado=CONFIRMADA dia=FECHA+0 inicio=10:00 fin=11:00 mismoDia=true servicio=Semipermanente/25.5/60min trabajadora=Sindi García cliente=Laura Pérez laura-*@test.com");
+            assertThat(repositorioCita.count()).isEqualTo(1);
+        }
+
+        @Test
+        void characterises_solape_con_otra_cita() {
+            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 30)), clienta))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El trabajador no está disponible en el horario seleccionado.");
+        }
+
+        @Test
+        void characterises_cita_justo_a_continuacion_de_otra() {
+            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(11, 0)), clienta);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void characterises_solape_con_cita_cancelada() {
+            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CANCELADA);
+
+            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void characterises_cita_sin_turno_ese_dia_SUSPICIOUS() {
+            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(3, 0)), clienta);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void characterises_cita_durante_una_ausencia_SUSPICIOUS() {
+            turno(trabajadora, FECHA, "10:00", "13:00");
+            bloqueo(TipoBloqueo.TRABAJADOR, trabajadora, FECHA.atTime(10, 0), FECHA.atTime(13, 0));
+
+            CitaDto creada = citaService.createCita(dto(servicio60, trabajadora, FECHA.atTime(10, 0)), clienta);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void characterises_cita_en_el_pasado_SUSPICIOUS() {
+            CitaDto creada = citaService.createCita(
+                    dto(servicio60, trabajadora, LocalDate.now().minusDays(10).atTime(10, 0)), clienta);
+
+            assertThat(creada.getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
+        }
+
+        @Test
+        void characterises_servicio_inexistente() {
+            CreateCitaDto dto = dto(servicio60, trabajadora, FECHA.atTime(10, 0));
+            dto.setIdServicio(999_999L);
+
+            assertThatThrownBy(() -> citaService.createCita(dto, clienta))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Servicio no encontrado con id: 999999");
+        }
+
+        @Test
+        void characterises_trabajadora_inexistente() {
+            CreateCitaDto dto = dto(servicio60, trabajadora, FECHA.atTime(10, 0));
+            dto.setIdTrabajador(999_999L);
+
+            assertThatThrownBy(() -> citaService.createCita(dto, clienta))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Trabajador no encontrado con id: 999999");
+        }
+
+        @Test
+        void characterises_admin_crea_cita_para_una_clienta() {
+            AdminCreateCitaDto dto = new AdminCreateCitaDto();
+            dto.setIdServicio(servicio60.getId());
+            dto.setIdTrabajador(trabajadora.getId());
+            dto.setFechaHoraInicio(FECHA.atTime(10, 0));
+            dto.setIdCliente(otraClienta.getId());
+
+            assertThat(resumen(citaService.createCitaByAdmin(dto))).isEqualTo(
+                    "estado=CONFIRMADA dia=FECHA+0 inicio=10:00 fin=11:00 mismoDia=true servicio=Semipermanente/25.5/60min trabajadora=Sindi García cliente=Marta Pérez marta-*@test.com");
+        }
+
+        @Test
+        void characterises_admin_con_clienta_inexistente() {
+            AdminCreateCitaDto dto = new AdminCreateCitaDto();
+            dto.setIdServicio(servicio60.getId());
+            dto.setIdTrabajador(trabajadora.getId());
+            dto.setFechaHoraInicio(FECHA.atTime(10, 0));
+            dto.setIdCliente(999_999L);
+
+            assertThatThrownBy(() -> citaService.createCitaByAdmin(dto))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cliente no encontrado con id: 999999");
+        }
+    }
+
+    // ---------------------------------------------------------------- updateCita
+
+    @Nested
+    class ActualizarCita {
+
+        @Test
+        void characterises_mover_cita_a_otra_hora_y_servicio() {
+            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto movida = citaService.updateCita(existente.getId(), dto(servicio45, otraTrabajadora, FECHA.atTime(16, 0)));
+
+            assertThat(resumen(movida)).isEqualTo(
+                    "estado=CONFIRMADA dia=FECHA+0 inicio=16:00 fin=16:45 mismoDia=true servicio=Retirada/10.0/45min trabajadora=Ana López cliente=Laura Pérez laura-*@test.com");
+        }
+
+        @Test
+        void characterises_mover_cita_solapando_con_su_propio_horario_anterior() {
+            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto movida = citaService.updateCita(existente.getId(), dto(servicio60, trabajadora, FECHA.atTime(10, 15)));
+
+            assertThat(movida.getFechaHoraInicio().toLocalTime()).isEqualTo(LocalTime.of(10, 15));
+        }
+
+        @Test
+        void characterises_mover_cita_encima_de_otra() {
+            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(existente.getId(), dto(servicio60, trabajadora, FECHA.atTime(11, 30))))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
+        }
+
+        @Test
+        void characterises_mover_una_cita_cancelada_SUSPICIOUS() {
+            Cita cancelada = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CANCELADA);
+
+            CitaDto movida = citaService.updateCita(cancelada.getId(), dto(servicio60, trabajadora, FECHA.atTime(12, 0)));
+
+            assertThat(movida.getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void characterises_cita_inexistente() {
+            assertThatThrownBy(() -> citaService.updateCita(999_999L, dto(servicio60, trabajadora, FECHA.atTime(10, 0))))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: 999999");
+        }
+    }
+
+    // ---------------------------------------------------------------- deleteCita / cancelarCita
+
+    @Nested
+    class BorrarYCancelar {
+
+        @Test
+        void characterises_borrar_cita() {
+            Cita existente = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            citaService.deleteCita(existente.getId());
+
+            assertThat(repositorioCita.existsById(existente.getId())).isFalse();
+        }
+
+        @Test
+        void characterises_borrar_cita_inexistente() {
+            assertThatThrownBy(() -> citaService.deleteCita(999_999L))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: 999999");
+        }
+
+        @Test
+        void characterises_cancelar_con_mas_de_12_horas_de_antelacion() {
+            Cita existente = cita(clienta, trabajadora, servicio60, LocalDateTime.now().plusHours(13), EstadoCita.CONFIRMADA);
+
+            citaService.cancelarCita(existente.getId(), clienta);
+
+            assertThat(repositorioCita.findById(existente.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void characterises_cancelar_con_menos_de_12_horas_de_antelacion() {
+            Cita existente = cita(clienta, trabajadora, servicio60, LocalDateTime.now().plusHours(11), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(existente.getId(), clienta))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        @Test
+        void characterises_cancelar_justo_por_encima_del_limite_de_12_horas() {
+            Cita existente = cita(clienta, trabajadora, servicio60, LocalDateTime.now().plusHours(12).plusMinutes(5), EstadoCita.CONFIRMADA);
+
+            citaService.cancelarCita(existente.getId(), clienta);
+
+            assertThat(repositorioCita.findById(existente.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void characterises_cancelar_justo_por_debajo_del_limite_de_12_horas() {
+            Cita existente = cita(clienta, trabajadora, servicio60, LocalDateTime.now().plusHours(11).plusMinutes(55), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(existente.getId(), clienta))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        @Test
+        void characterises_cancelar_cita_de_otra_clienta() {
+            Cita ajena = cita(otraClienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(ajena.getId(), clienta))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No tienes permiso para cancelar esta cita.");
+        }
+
+        @Test
+        void characterises_cancelar_una_cita_ya_cancelada_SUSPICIOUS() {
+            Cita cancelada = cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CANCELADA);
+
+            citaService.cancelarCita(cancelada.getId(), clienta);
+
+            assertThat(repositorioCita.findById(cancelada.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CANCELADA);
+        }
+
+        @Test
+        void characterises_cancelar_una_cita_pasada() {
+            Cita pasada = cita(clienta, trabajadora, servicio60, LocalDateTime.now().minusDays(2), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.cancelarCita(pasada.getId(), clienta))
+                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .hasMessage("No se puede cancelar la cita con menos de 12 horas de antelación.");
+        }
+
+        @Test
+        void characterises_cancelar_cita_inexistente() {
+            assertThatThrownBy(() -> citaService.cancelarCita(999_999L, clienta))
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: 999999");
+        }
+    }
+
+    // ---------------------------------------------------------------- listados
+
+    @Nested
+    class Listados {
+
+        @Test
+        void characterises_mis_citas() {
+            cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+            cita(clienta, trabajadora, servicio45, FECHA.plusDays(3).atTime(9, 0), EstadoCita.CANCELADA);
+            cita(clienta, otraTrabajadora, servicio60, FECHA.minusDays(5).atTime(17, 0), EstadoCita.COMPLETADA);
+            cita(otraClienta, trabajadora, servicio60, FECHA.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+            List<String> misCitas = citaService.getMisCitas(clienta).stream().map(this::lineaRelativa).toList();
+
+            assertThat(misCitas).containsExactly(
+                    "FECHA+3 09:00 CANCELADA Laura Sindi", "FECHA+0 10:00 CONFIRMADA Laura Sindi", "FECHA-5 17:00 COMPLETADA Laura Ana");
+        }
+
+        @Test
+        void characterises_todas_las_citas() {
+            cita(clienta, trabajadora, servicio60, FECHA.atTime(10, 0), EstadoCita.CONFIRMADA);
+            cita(otraClienta, otraTrabajadora, servicio45, FECHA.plusDays(1).atTime(9, 0), EstadoCita.CANCELADA);
+            cita(otraClienta, trabajadora, servicio60, FECHA.minusDays(1).atTime(18, 0), EstadoCita.PENDIENTE);
+
+            List<String> todas = citaService.getAllCitas().stream().map(this::lineaRelativa).toList();
+
+            assertThat(todas).containsExactly(
+                    "FECHA+1 09:00 CANCELADA Marta Ana", "FECHA+0 10:00 CONFIRMADA Laura Sindi", "FECHA-1 18:00 PENDIENTE Marta Sindi");
+        }
+
+        @Test
+        void characterises_citas_de_la_ultima_semana_SUSPICIOUS_cuenta_canceladas() {
+            LocalDate hoy = LocalDate.now();
+            cita(clienta, trabajadora, servicio60, hoy.atTime(9, 0), EstadoCita.CONFIRMADA);
+            cita(otraClienta, trabajadora, servicio60, hoy.atTime(12, 0), EstadoCita.CANCELADA);
+            cita(clienta, trabajadora, servicio60, hoy.minusDays(2).atTime(10, 0), EstadoCita.COMPLETADA);
+            cita(clienta, trabajadora, servicio60, hoy.minusDays(6).atTime(0, 0), EstadoCita.COMPLETADA);
+            cita(clienta, trabajadora, servicio60, hoy.minusDays(7).atTime(23, 0), EstadoCita.COMPLETADA);
+            cita(clienta, trabajadora, servicio60, hoy.plusDays(1).atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            List<CitasPorDiaDto> semana = citaService.getCitasUltimaSemana();
+
+            assertThat(semana).extracting(CitasPorDiaDto::getCitas).containsExactly(1L, 0L, 0L, 0L, 1L, 0L, 2L);
+            assertThat(semana).extracting(CitasPorDiaDto::getName).containsExactlyInAnyOrder("lun", "mar", "mié", "jue", "vie", "sáb", "dom");
+        }
+
+        /** Cita en una línea, con la fecha relativa a FECHA para que no dependa del día de ejecución. */
+        private String lineaRelativa(CitaDto c) {
+            long dias = java.time.temporal.ChronoUnit.DAYS.between(FECHA, c.getFechaHoraInicio().toLocalDate());
+            return "FECHA%+d %s %s %s %s".formatted(dias, c.getFechaHoraInicio().toLocalTime(),
+                    c.getEstado(), c.getCliente().getNombre(), c.getTrabajador().getNombre());
+        }
+    }
+
+    // ---------------------------------------------------------------- utilidades
+
+    private String resumen(CitaDto c) {
+        return "estado=%s dia=FECHA%+d inicio=%s fin=%s mismoDia=%s servicio=%s/%s/%smin trabajadora=%s %s cliente=%s %s %s".formatted(
+                c.getEstado(), java.time.temporal.ChronoUnit.DAYS.between(FECHA, c.getFechaHoraInicio().toLocalDate()),
+                c.getFechaHoraInicio().toLocalTime(), c.getFechaHoraFin().toLocalTime(),
+                c.getFechaHoraInicio().toLocalDate().equals(c.getFechaHoraFin().toLocalDate()),
+                c.getServicio().getNombre(), c.getServicio().getPrecio(), c.getServicio().getDuracionEnMinutos(),
+                c.getTrabajador().getNombre(), c.getTrabajador().getApellidos(),
+                c.getCliente().getNombre(), c.getCliente().getApellidos(), c.getCliente().getEmail().replaceAll("-[0-9a-f]+@", "-*@"));
+    }
+
+    private ServicioLocal servicio(String nombre, double precio, int minutos, TipoServicio tipo) {
+        ServicioLocal s = new ServicioLocal();
+        s.setNombre(nombre);
+        s.setDescripcion(nombre);
+        s.setPrecio(precio);
+        s.setDuracionEnMinutos(minutos);
+        s.setTipoServicio(tipo);
+        return repositorioServicios.save(s);
+    }
+
+    private Usuario usuario(String nombre) {
+        return repositorioUsuario.save(Usuario.builder()
+                .nombre(nombre).apellidos("Pérez")
+                .email(nombre.toLowerCase() + "-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+                .password("x").telefono("600000000").role(Role.USER).build());
+    }
+
+    private void turno(Trabajador t, LocalDate fecha, String inicio, String fin) {
+        repositorioTurno.save(new Turno(null, t, fecha, LocalTime.parse(inicio), LocalTime.parse(fin)));
+    }
+
+    private void bloqueo(TipoBloqueo tipo, Trabajador t, LocalDateTime inicio, LocalDateTime fin) {
+        repositorioPeriodos.save(PeriodoNoDisponible.builder()
+                .tipo(tipo).trabajador(t).motivo("test").fechaHoraInicio(inicio).fechaHoraFin(fin).build());
+    }
+
+    private Cita cita(Usuario cliente, Trabajador t, ServicioLocal s, LocalDateTime inicio, EstadoCita estado) {
+        return repositorioCita.save(Cita.builder().cliente(cliente).trabajador(t).servicio(s)
+                .fechaHoraInicio(inicio).fechaHoraFin(inicio.plusMinutes(s.getDuracionEnMinutos()))
+                .estado(estado).build());
+    }
+
+    private CreateCitaDto dto(ServicioLocal s, Trabajador t, LocalDateTime inicio) {
+        CreateCitaDto dto = new CreateCitaDto();
+        dto.setIdServicio(s.getId());
+        dto.setIdTrabajador(t.getId());
+        dto.setFechaHoraInicio(inicio);
+        return dto;
+    }
+}

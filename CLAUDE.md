@@ -65,6 +65,22 @@ Todo junto: `docker compose up --build` → http://localhost
 
 No te conectes a la base de datos antigua de Railway ni a ningún servicio remoto. Todo se ejecuta contra el MySQL de docker en local.
 
+### Comportamientos sospechosos de `CitaService` (caracterizados en la Fase 1, pendientes de decisión)
+
+Están fijados en `CitaServiceCharacterisationTest` con el sufijo `SUSPICIOUS`. No se corrigen hasta que el usuario decida el comportamiento correcto; después, cada uno se arregla con `tdd` y su test de caracterización se sustituye por uno de comportamiento.
+
+| # | Comportamiento actual | Dónde |
+|---|---|---|
+| S1 | `createCita` solo comprueba solapes con otras citas: **permite reservar sin turno ese día, durante una ausencia o un bloqueo global, y en el pasado**. Desde la web, el `@Future` del DTO frena las fechas pasadas, pero el servicio no las rechaza. | `createCita`, `updateCita` |
+| S2 | **Hoy se ofrecen huecos de horas que ya han pasado.** | `getHorariosDisponibles` |
+| S3 | **Una trabajadora inactiva (`activo=false`) sigue teniendo huecos reservables.** | `getHorariosDisponibles` |
+| S4 | **Con un turno partido, los huecos salen en el orden de la base de datos**, no por hora (`16:00…` antes que `09:00…`). | `getHorariosDisponibles` |
+| S5 | **El resumen semanal del panel cuenta también las citas canceladas.** | `getCitasUltimaSemana` |
+| S6 | **Se puede mover una cita cancelada** (sigue cancelada) y **cancelar una que ya estaba cancelada** (no da error). | `updateCita`, `cancelarCita` |
+| S7 | `cancelarCita` usa la misma regla (y mensaje) de "menos de 12 horas" para una cita que ya pasó. | `cancelarCita` |
+
+Notas de diseño para el refactor: `CitaService` usa `LocalDate.now()`/`LocalDateTime.now()` directamente (habría que inyectar un `Clock`); `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada.
+
 ---
 
 ## Skills y cuándo usar cada una
