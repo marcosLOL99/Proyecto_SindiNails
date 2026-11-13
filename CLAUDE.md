@@ -42,7 +42,7 @@ Backend (desde `backend-springboot/`, en Windows `mvnw.cmd`):
 - Un test: `./mvnw test -Dtest=NombreDelTest`
 
 Frontend (desde `frontend-react/`, Node.js 26 LTS):
-- `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`, o a `VITE_PROXY_TARGET` si está definida) · `npm run build` · `npm run lint`
+- `npm run dev` (http://localhost:5173; Vite redirige `/api` a `localhost:8080`) · `npm run build` · `npm run lint`
 - Si la terminal no encuentra `node`/`npm`, la ruta es `C:\Program Files\nodejs`.
 - npm 11 no ejecuta scripts de instalación sin aprobar (el aviso de `esbuild` es normal y no afecta).
 - Tests: `npm test` (modo watch) / `npm run test:run` (una vez) / `npx vitest run ruta/al/archivo.test.jsx`
