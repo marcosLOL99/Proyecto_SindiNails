@@ -4,6 +4,7 @@ import com.SindiNails.backend.dto.AuthResponseDto;
 import com.SindiNails.backend.dto.LoginDto;
 import com.SindiNails.backend.dto.EditarUsuarioDto;
 import com.SindiNails.backend.dto.RegistroDto;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
@@ -25,7 +26,7 @@ public class AuthService {
 
     public AuthResponseDto register(RegistroDto request) {
         if (repositorioUsuario.findByEmail(request.getEmail()).isPresent()) {
-            throw new IllegalArgumentException("El email ya está en uso.");
+            throw new ReglaDeNegocioException("El email ya está en uso.");
         }
 
         var user = Usuario.builder()

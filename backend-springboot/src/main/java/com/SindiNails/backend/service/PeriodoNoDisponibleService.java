@@ -1,6 +1,7 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.BloqueoDto;
+import com.SindiNails.backend.exception.PeticionNoValidaException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.PeriodoNoDisponible;
 import com.SindiNails.backend.model.TipoBloqueo;
@@ -29,7 +30,7 @@ public class PeriodoNoDisponibleService {
 
         if (bloqueoDto.getTipo() == TipoBloqueo.TRABAJADOR) {
             if (bloqueoDto.getTrabajadorId() == null) {
-                throw new IllegalArgumentException("El ID del trabajador es obligatorio para bloqueos de tipo TRABAJADOR.");
+                throw new PeticionNoValidaException("El ID del trabajador es obligatorio para bloqueos de tipo TRABAJADOR.");
             }
             Trabajador trabajador = trabajadorRepository.findById(bloqueoDto.getTrabajadorId())
                     .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + bloqueoDto.getTrabajadorId()));

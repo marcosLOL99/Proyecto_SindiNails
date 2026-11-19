@@ -2,6 +2,7 @@ package com.SindiNails.backend.service;
 
 
 import com.SindiNails.backend.dto.*;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.*;
 import com.SindiNails.backend.repository.RepositorioCita;
@@ -57,7 +58,7 @@ public class CitaService {
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadas(trabajador.getId(), fechaHoraInicio,
                 fechaHoraFin);
         if (!citasSolapadas.isEmpty()) {
-            throw new IllegalStateException("El trabajador no está disponible en el horario seleccionado.");
+            throw new ReglaDeNegocioException("El trabajador no está disponible en el horario seleccionado.");
         }
 
         Cita nuevaCita = Cita.builder()
@@ -87,7 +88,7 @@ public class CitaService {
         Cita citaExistente = repositorioCita.findById(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
         if (citaExistente.getEstado() == EstadoCita.CANCELADA) {
-            throw new IllegalStateException("No se puede modificar una cita cancelada.");
+            throw new ReglaDeNegocioException("No se puede modificar una cita cancelada.");
         }
 
         ServicioLocal servicio = repositorioServicios.findById(updateCitaDto.getIdServicio())
@@ -111,7 +112,7 @@ public class CitaService {
         List<Cita> citasSolapadas = repositorioCita.findCitasSolapadasExcluyendoCita(trabajador.getId(),
                 fechaHoraInicio, fechaHoraFin, citaId);
         if (!citasSolapadas.isEmpty()) {
-            throw new IllegalStateException("El trabajador no está disponible en el nuevo horario seleccionado.");
+            throw new ReglaDeNegocioException("El trabajador no está disponible en el nuevo horario seleccionado.");
         }
 
         citaExistente.setTrabajador(trabajador);
@@ -130,10 +131,10 @@ public class CitaService {
      */
     private void validarHorarioReservable(Trabajador trabajador, LocalDateTime inicio, LocalDateTime fin) {
         if (inicio.isBefore(LocalDateTime.now(clock))) {
-            throw new IllegalStateException("No se puede reservar una cita en el pasado.");
+            throw new ReglaDeNegocioException("No se puede reservar una cita en el pasado.");
         }
         if (!trabajador.isActivo()) {
-            throw new IllegalStateException("La trabajadora seleccionada no está activa.");
+            throw new ReglaDeNegocioException("La trabajadora seleccionada no está activa.");
         }
 
         boolean dentroDeUnTurno = inicio.toLocalDate().equals(fin.toLocalDate())
@@ -142,7 +143,7 @@ public class CitaService {
                         .anyMatch(turno -> !inicio.toLocalTime().isBefore(turno.getHoraInicio())
                                 && !fin.toLocalTime().isAfter(turno.getHoraFin()));
         if (!dentroDeUnTurno) {
-            throw new IllegalStateException("La trabajadora no trabaja en el horario seleccionado.");
+            throw new ReglaDeNegocioException("La trabajadora no trabaja en el horario seleccionado.");
         }
 
         boolean bloqueado = !periodoNoDisponibleRepository
@@ -150,7 +151,7 @@ public class CitaService {
                 || !periodoNoDisponibleRepository
                 .findByTrabajadorIdAndFechaHoraInicioBeforeAndFechaHoraFinAfter(trabajador.getId(), fin, inicio).isEmpty();
         if (bloqueado) {
-            throw new IllegalStateException("El horario seleccionado está bloqueado.");
+            throw new ReglaDeNegocioException("El horario seleccionado está bloqueado.");
         }
     }
 
@@ -168,22 +169,22 @@ public class CitaService {
 
         // 1. Verificar que el usuario es el dueño de la cita
         if (!cita.getCliente().getId().equals(cliente.getId())) {
-            throw new IllegalStateException("No tienes permiso para cancelar esta cita.");
+            throw new ReglaDeNegocioException("No tienes permiso para cancelar esta cita.");
         }
 
         if (cita.getEstado() == EstadoCita.CANCELADA) {
-            throw new IllegalStateException("La cita ya está cancelada.");
+            throw new ReglaDeNegocioException("La cita ya está cancelada.");
         }
 
         LocalDateTime ahora = LocalDateTime.now(clock);
         if (cita.getFechaHoraInicio().isBefore(ahora)) {
-            throw new IllegalStateException("No se puede cancelar una cita que ya ha pasado.");
+            throw new ReglaDeNegocioException("No se puede cancelar una cita que ya ha pasado.");
         }
 
         // 2. Verificar la regla de las 12 horas
         LocalDateTime limiteCancelacion = cita.getFechaHoraInicio().minusHours(12);
         if (ahora.isAfter(limiteCancelacion)) {
-            throw new IllegalStateException("No se puede cancelar la cita con menos de 12 horas de antelación.");
+            throw new ReglaDeNegocioException("No se puede cancelar la cita con menos de 12 horas de antelación.");
         }
 
         // 3. Cambiar el estado y guardar
