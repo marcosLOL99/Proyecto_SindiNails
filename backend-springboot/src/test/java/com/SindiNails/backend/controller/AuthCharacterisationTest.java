@@ -36,8 +36,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Los casos SUSPICIOUS parecen bugs: se documentan tal cual y se corrigen con TDD como cambio aparte.
  *
  * Usan un servidor real (RANDOM_PORT) y no MockMvc: MockMvc no hace la redirección interna a /error
- * de Tomcat, y esa redirección decide qué estado recibe de verdad el frontend. Por eso casi cualquier
- * error (excepción en el controlador o en el filtro JWT) acaba como "403 sin cuerpo": /error no es público.
+ * de Tomcat, y esa redirección decide qué estado recibe de verdad el frontend.
+ * Los 401 (sin sesión válida, credenciales incorrectas) ya tienen tests permanentes en AutenticacionTest.
  * No son @Transactional (el servidor corre en otro hilo): cada test usa un email único.
  *
  * Son temporales: se sustituirán por tests de comportamiento al corregir la API.
@@ -46,9 +46,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 @Import(TestcontainersConfiguration.class)
 class AuthCharacterisationTest {
-
-    /** Respuesta de casi todos los errores hoy: 403 y cuerpo vacío. */
-    private static final String PROHIBIDO_SIN_CUERPO = "403 null";
 
     @Autowired TestRestTemplate http;
     @Autowired RepositorioUsuario usuarios;
@@ -135,23 +132,25 @@ class AuthCharacterisationTest {
         }
 
         @Test
-        void characterises_registro_con_email_repetido__SUSPICIOUS_403_sin_mensaje() {
-            // SUSPICIOUS: el servicio lanza "El email ya está en uso." pero llega 403 sin cuerpo.
+        void characterises_registro_con_email_repetido__SUSPICIOUS_500_sin_mensaje() throws Exception {
+            // SUSPICIOUS: el servicio lanza "El email ya está en uso." pero llega 500 sin el mensaje.
             String email = emailUnico();
             usuarioGuardado(email, "secreta1", Role.USER);
             var r = post("/api/auth/register", """
                     {"nombre":"Otra","apellidos":"Pérez","email":"%s","telefono":"600","password":"otra"}
                     """.formatted(email));
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
+            assertThat(r.getStatusCode().value()).isEqualTo(500);
+            assertThat(json.readTree(r.getBody()).has("message")).isFalse();
         }
 
         @Test
-        void characterises_registro_sin_datos__SUSPICIOUS_403() {
-            // SUSPICIOUS: sin validación; falla al guardar (email NOT NULL) y llega 403 sin cuerpo.
+        void characterises_registro_sin_datos__SUSPICIOUS_500() throws Exception {
+            // SUSPICIOUS: sin validación; falla al guardar (email NOT NULL) y llega 500 sin mensaje.
             var r = post("/api/auth/register", "{}");
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
+            assertThat(r.getStatusCode().value()).isEqualTo(500);
+            assertThat(json.readTree(r.getBody()).has("message")).isFalse();
         }
 
         @Test
@@ -191,32 +190,14 @@ class AuthCharacterisationTest {
             assertThat(c.getExpiration().getTime() - c.getIssuedAt().getTime()).isEqualTo(duracionToken);
         }
 
-        @Test
-        void characterises_login_con_password_incorrecta__SUSPICIOUS_403() {
-            // SUSPICIOUS (peligro nº 3): credenciales incorrectas deberían ser 401.
-            String email = emailUnico();
-            usuarioGuardado(email, "secreta1", Role.USER);
-            var r = post("/api/auth/login", """
-                    {"email":"%s","password":"mala"}
-                    """.formatted(email));
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
 
         @Test
-        void characterises_login_con_email_inexistente__SUSPICIOUS_403() {
-            var r = post("/api/auth/login", """
-                    {"email":"%s","password":"secreta1"}
-                    """.formatted(emailUnico()));
-
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
-
-        @Test
-        void characterises_login_sin_datos__SUSPICIOUS_403() {
+        void characterises_login_sin_datos__SUSPICIOUS_401() {
+            // SUSPICIOUS: sin validación; un login vacío se trata como credenciales incorrectas (no 400).
             var r = post("/api/auth/login", "{}");
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
+            assertThat(resumen(r)).isEqualTo("401 null");
         }
     }
 
@@ -237,47 +218,10 @@ class AuthCharacterisationTest {
                     """.formatted(u.getId(), email)));
         }
 
-        @Test
-        void characterises_me_sin_token__SUSPICIOUS_403() {
-            // SUSPICIOUS (peligro nº 3): sin token debería ser 401.
-            var r = conToken(HttpMethod.GET, "/api/users/me", null, null);
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
 
-        @Test
-        void characterises_me_con_token_caducado__SUSPICIOUS_403() {
-            // SUSPICIOUS: el filtro JWT lanza ExpiredJwtException; acaba en 403 y el frontend no cierra sesión.
-            String email = emailUnico();
-            usuarioGuardado(email, "secreta1", Role.USER);
-            var r = conToken(HttpMethod.GET, "/api/users/me", token(email, -60_000, secreto), null);
 
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
 
-        @Test
-        void characterises_me_con_token_firmado_con_otro_secreto__SUSPICIOUS_403() {
-            String email = emailUnico();
-            usuarioGuardado(email, "secreta1", Role.USER);
-            String otroSecreto = "b3Ryby1zZWNyZXRvLWRpc3RpbnRvLXBhcmEtdGVzdHMh";
-            var r = conToken(HttpMethod.GET, "/api/users/me", token(email, 60_000, otroSecreto), null);
-
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
-
-        @Test
-        void characterises_me_con_token_mal_formado__SUSPICIOUS_403() {
-            var r = conToken(HttpMethod.GET, "/api/users/me", "esto-no-es-un-jwt", null);
-
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
-
-        @Test
-        void characterises_me_con_token_de_usuario_que_ya_no_existe__SUSPICIOUS_403() {
-            var r = conToken(HttpMethod.GET, "/api/users/me", token(emailUnico(), 60_000, secreto), null);
-
-            assertThat(resumen(r)).isEqualTo(PROHIBIDO_SIN_CUERPO);
-        }
 
         @Test
         void characterises_editar_mis_datos_ignora_email_y_rol() throws Exception {

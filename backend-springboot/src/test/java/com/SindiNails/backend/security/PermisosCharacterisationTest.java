@@ -136,41 +136,41 @@ class PermisosCharacterisationTest {
         assertThat(matriz.toString()).isEqualToNormalizingNewlines("""
                 POST /api/auth/register                       | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 POST /api/auth/login                          | anónimo: pasa        | USER: pasa        | ADMIN: pasa
-                GET /api/users/me                             | anónimo: bloquea 403 | USER: pasa        | ADMIN: pasa
-                PUT /api/users/me                             | anónimo: bloquea 403 | USER: pasa        | ADMIN: pasa
+                GET /api/users/me                             | anónimo: bloquea 401 | USER: pasa        | ADMIN: pasa
+                PUT /api/users/me                             | anónimo: bloquea 401 | USER: pasa        | ADMIN: pasa
                 GET /api/servicios                            | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 GET /api/servicios/999999                     | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 GET /api/tiposervicios                        | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 GET /api/trabajadores                         | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 GET /api/citas/disponibilidad                 | anónimo: pasa        | USER: pasa        | ADMIN: pasa
                 GET /api/citas/dias-no-disponibles            | anónimo: pasa        | USER: pasa        | ADMIN: pasa
-                POST /api/citas                               | anónimo: bloquea 403 | USER: pasa        | ADMIN: pasa
-                GET /api/citas/mis-citas                      | anónimo: bloquea 403 | USER: pasa        | ADMIN: pasa
-                PATCH /api/citas/999999/cancelar              | anónimo: bloquea 403 | USER: pasa        | ADMIN: pasa
-                GET /api/admin/citas                          | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/citas                         | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/stats/citas-semanales          | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                PUT /api/admin/citas/999999                   | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/citas/999999                | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/servicios                     | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                PUT /api/admin/servicios/999999               | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/servicios/999999            | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/trabajadores                   | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/trabajadores                  | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                PUT /api/admin/trabajadores/999999            | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/trabajadores/999999         | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/trabajadores/999999/turnos     | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/turnos                        | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/turnos/batch                  | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                PUT /api/admin/turnos/999999                  | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/turnos/999999               | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/clientes                       | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                PUT /api/admin/clientes/999999                | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/clientes/999999             | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                POST /api/admin/bloqueos                      | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/bloqueos/trabajador/999999     | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                GET /api/admin/bloqueos/globales              | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
-                DELETE /api/admin/bloqueos/999999             | anónimo: bloquea 403 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/citas                               | anónimo: bloquea 401 | USER: pasa        | ADMIN: pasa
+                GET /api/citas/mis-citas                      | anónimo: bloquea 401 | USER: pasa        | ADMIN: pasa
+                PATCH /api/citas/999999/cancelar              | anónimo: bloquea 401 | USER: pasa        | ADMIN: pasa
+                GET /api/admin/citas                          | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/citas                         | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/stats/citas-semanales          | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                PUT /api/admin/citas/999999                   | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/citas/999999                | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/servicios                     | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                PUT /api/admin/servicios/999999               | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/servicios/999999            | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/trabajadores                   | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/trabajadores                  | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                PUT /api/admin/trabajadores/999999            | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/trabajadores/999999         | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/trabajadores/999999/turnos     | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/turnos                        | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/turnos/batch                  | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                PUT /api/admin/turnos/999999                  | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/turnos/999999               | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/clientes                       | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                PUT /api/admin/clientes/999999                | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/clientes/999999             | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                POST /api/admin/bloqueos                      | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/bloqueos/trabajador/999999     | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                GET /api/admin/bloqueos/globales              | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
+                DELETE /api/admin/bloqueos/999999             | anónimo: bloquea 401 | USER: bloquea 403 | ADMIN: pasa
                 """);
     }
 }
