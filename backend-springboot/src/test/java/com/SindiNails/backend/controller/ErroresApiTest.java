@@ -92,4 +92,23 @@ class ErroresApiTest {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(mensaje(r)).isEqualTo("El ID del trabajador es obligatorio para bloqueos de tipo TRABAJADOR.");
     }
+
+    @Test
+    void un_campo_que_no_pasa_la_validacion_responde_400_con_su_mensaje() throws Exception {
+        var r = peticion(HttpMethod.POST, "/api/admin/servicios", usuario(Role.ADMIN), """
+                {"nombre":"Manicura","precio":20,"duracionEnMinutos":0,"tipoServicioId":1}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La duración debe ser de al menos 1 minuto.");
+    }
+
+    @Test
+    void con_varios_campos_no_validos_el_mensaje_los_reune_ordenados_por_campo() throws Exception {
+        var r = peticion(HttpMethod.POST, "/api/admin/servicios", usuario(Role.ADMIN), "{}");
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La duración no puede ser nula. El nombre no puede estar vacío. "
+                + "El precio no puede ser nulo. El ID del tipo de servicio no puede ser nulo.");
+    }
 }
