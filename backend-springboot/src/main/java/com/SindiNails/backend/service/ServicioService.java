@@ -1,6 +1,7 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.CreateUpdateServicioDto;
+import com.SindiNails.backend.dto.ServicioDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.TipoServicio;
@@ -18,7 +19,7 @@ public class ServicioService {
     private final RepositorioTipoServicio repositorioTipoServicio;
 
     @Transactional
-    public ServicioLocal createServicio(CreateUpdateServicioDto servicioDto) {
+    public ServicioDto createServicio(CreateUpdateServicioDto servicioDto) {
         TipoServicio tipoServicio = repositorioTipoServicio.findById(servicioDto.getTipoServicioId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tipo de servicio no encontrado con id: " + servicioDto.getTipoServicioId()));
 
@@ -29,11 +30,11 @@ public class ServicioService {
         nuevoServicio.setDuracionEnMinutos(servicioDto.getDuracionEnMinutos());
         nuevoServicio.setTipoServicio(tipoServicio);
 
-        return repositorioServicios.save(nuevoServicio);
+        return ServicioDto.de(repositorioServicios.save(nuevoServicio));
     }
 
     @Transactional
-    public ServicioLocal updateServicio(Long id, CreateUpdateServicioDto servicioDto) {
+    public ServicioDto updateServicio(Long id, CreateUpdateServicioDto servicioDto) {
         ServicioLocal servicioExistente = repositorioServicios.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
 
@@ -46,7 +47,7 @@ public class ServicioService {
         servicioExistente.setDuracionEnMinutos(servicioDto.getDuracionEnMinutos());
         servicioExistente.setTipoServicio(tipoServicio);
 
-        return repositorioServicios.save(servicioExistente);
+        return ServicioDto.de(repositorioServicios.save(servicioExistente));
     }
 
     public void deleteServicio(Long id) {

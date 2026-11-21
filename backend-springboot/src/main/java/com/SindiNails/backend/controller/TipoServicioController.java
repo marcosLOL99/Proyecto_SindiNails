@@ -1,6 +1,6 @@
 package com.SindiNails.backend.controller;
 
-import com.SindiNails.backend.model.TipoServicio;
+import com.SindiNails.backend.dto.TipoServicioDto;
 import com.SindiNails.backend.repository.RepositorioTipoServicio;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,5 +17,7 @@ public class TipoServicioController {
     private RepositorioTipoServicio repositorioTipoServicio;
 
     @GetMapping
-    public List<TipoServicio> getAllTiposServicio() { return repositorioTipoServicio.findAll(); }
+    public List<TipoServicioDto> getAllTiposServicio() {
+        return repositorioTipoServicio.findAll().stream().map(TipoServicioDto::de).toList();
+    }
 }

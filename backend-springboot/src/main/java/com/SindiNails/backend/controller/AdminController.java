@@ -1,7 +1,6 @@
 package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.dto.*;
-import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.service.CitaService;
 import com.SindiNails.backend.service.TurnoService;
@@ -64,14 +63,14 @@ public class AdminController {
     // --- Endpoints para Servicios ---
 
     @PostMapping("/servicios")
-    public ResponseEntity<ServicioLocal> createServicio(@Valid @RequestBody CreateUpdateServicioDto servicioDto) {
-        ServicioLocal nuevoServicio = servicioService.createServicio(servicioDto);
+    public ResponseEntity<ServicioDto> createServicio(@Valid @RequestBody CreateUpdateServicioDto servicioDto) {
+        ServicioDto nuevoServicio = servicioService.createServicio(servicioDto);
         return new ResponseEntity<>(nuevoServicio, HttpStatus.CREATED);
     }
 
     @PutMapping("/servicios/{id}")
-    public ResponseEntity<ServicioLocal> updateServicio(@PathVariable Long id, @Valid @RequestBody CreateUpdateServicioDto servicioDto) {
-        ServicioLocal servicioActualizado = servicioService.updateServicio(id, servicioDto);
+    public ResponseEntity<ServicioDto> updateServicio(@PathVariable Long id, @Valid @RequestBody CreateUpdateServicioDto servicioDto) {
+        ServicioDto servicioActualizado = servicioService.updateServicio(id, servicioDto);
         return ResponseEntity.ok(servicioActualizado);
     }
 
