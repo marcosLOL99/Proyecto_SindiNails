@@ -1,6 +1,7 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.CreateUpdateTrabajadorDto;
+import com.SindiNails.backend.dto.TrabajadorAdminDto;
 import com.SindiNails.backend.dto.TrabajadorDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Trabajador;
@@ -25,22 +26,22 @@ public class TrabajadorService {
                 .collect(Collectors.toList());
     }
 
-    public List<Trabajador> getAllTrabajadores() {
-        return repositorioTrabajador.findAll();
+    public List<TrabajadorAdminDto> getAllTrabajadores() {
+        return repositorioTrabajador.findAll().stream().map(TrabajadorAdminDto::de).toList();
     }
 
     @Transactional
-    public Trabajador createTrabajador(CreateUpdateTrabajadorDto trabajadorDto) {
+    public TrabajadorAdminDto createTrabajador(CreateUpdateTrabajadorDto trabajadorDto) {
         Trabajador nuevoTrabajador = Trabajador.builder()
                 .nombre(trabajadorDto.getNombre())
                 .apellidos(trabajadorDto.getApellidos())
                 .activo(trabajadorDto.getActivo())
                 .build();
-        return repositorioTrabajador.save(nuevoTrabajador);
+        return TrabajadorAdminDto.de(repositorioTrabajador.save(nuevoTrabajador));
     }
 
     @Transactional
-    public Trabajador updateTrabajador(Long id, CreateUpdateTrabajadorDto trabajadorDto) {
+    public TrabajadorAdminDto updateTrabajador(Long id, CreateUpdateTrabajadorDto trabajadorDto) {
         Trabajador trabajadorExistente = repositorioTrabajador.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + id));
 
@@ -48,7 +49,7 @@ public class TrabajadorService {
         trabajadorExistente.setApellidos(trabajadorDto.getApellidos());
         trabajadorExistente.setActivo(trabajadorDto.getActivo());
 
-        return repositorioTrabajador.save(trabajadorExistente);
+        return TrabajadorAdminDto.de(repositorioTrabajador.save(trabajadorExistente));
     }
 
     @Transactional

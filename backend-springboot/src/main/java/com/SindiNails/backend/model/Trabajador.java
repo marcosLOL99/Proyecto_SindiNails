@@ -1,7 +1,5 @@
 package com.SindiNails.backend.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -37,11 +35,9 @@ public class Trabajador {
     private boolean activo = true;
 
     @OneToMany(mappedBy = "trabajador", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonIgnore // Para evitar bucles infinitos al serializar a JSON
     private List<PeriodoNoDisponible> periodosNoDisponibles;
 
     @OneToMany(mappedBy = "trabajador", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    @JsonManagedReference
     @Builder.Default
     private List<Turno> turnos = new ArrayList<>();
 }

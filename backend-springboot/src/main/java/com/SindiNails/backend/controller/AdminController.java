@@ -1,8 +1,6 @@
 package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.dto.*;
-import com.SindiNails.backend.model.ServicioLocal;
-import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.service.CitaService;
 import com.SindiNails.backend.service.TurnoService;
 import com.SindiNails.backend.service.UsuarioService;
@@ -64,14 +62,14 @@ public class AdminController {
     // --- Endpoints para Servicios ---
 
     @PostMapping("/servicios")
-    public ResponseEntity<ServicioLocal> createServicio(@Valid @RequestBody CreateUpdateServicioDto servicioDto) {
-        ServicioLocal nuevoServicio = servicioService.createServicio(servicioDto);
+    public ResponseEntity<ServicioDto> createServicio(@Valid @RequestBody CreateUpdateServicioDto servicioDto) {
+        ServicioDto nuevoServicio = servicioService.createServicio(servicioDto);
         return new ResponseEntity<>(nuevoServicio, HttpStatus.CREATED);
     }
 
     @PutMapping("/servicios/{id}")
-    public ResponseEntity<ServicioLocal> updateServicio(@PathVariable Long id, @Valid @RequestBody CreateUpdateServicioDto servicioDto) {
-        ServicioLocal servicioActualizado = servicioService.updateServicio(id, servicioDto);
+    public ResponseEntity<ServicioDto> updateServicio(@PathVariable Long id, @Valid @RequestBody CreateUpdateServicioDto servicioDto) {
+        ServicioDto servicioActualizado = servicioService.updateServicio(id, servicioDto);
         return ResponseEntity.ok(servicioActualizado);
     }
 
@@ -84,20 +82,20 @@ public class AdminController {
     // --- Endpoints para Trabajadores ---
 
     @GetMapping("/trabajadores")
-    public ResponseEntity<List<Trabajador>> getAllTrabajadores() {
-        List<Trabajador> trabajadores = trabajadorService.getAllTrabajadores();
+    public ResponseEntity<List<TrabajadorAdminDto>> getAllTrabajadores() {
+        List<TrabajadorAdminDto> trabajadores = trabajadorService.getAllTrabajadores();
         return ResponseEntity.ok(trabajadores);
     }
 
     @PostMapping("/trabajadores")
-    public ResponseEntity<Trabajador> createTrabajador(@Valid @RequestBody CreateUpdateTrabajadorDto trabajadorDto) {
-        Trabajador nuevoTrabajador = trabajadorService.createTrabajador(trabajadorDto);
+    public ResponseEntity<TrabajadorAdminDto> createTrabajador(@Valid @RequestBody CreateUpdateTrabajadorDto trabajadorDto) {
+        TrabajadorAdminDto nuevoTrabajador = trabajadorService.createTrabajador(trabajadorDto);
         return new ResponseEntity<>(nuevoTrabajador, HttpStatus.CREATED);
     }
 
     @PutMapping("/trabajadores/{id}")
-    public ResponseEntity<Trabajador> updateTrabajador(@PathVariable Long id, @Valid @RequestBody CreateUpdateTrabajadorDto trabajadorDto) {
-        Trabajador trabajadorActualizado = trabajadorService.updateTrabajador(id, trabajadorDto);
+    public ResponseEntity<TrabajadorAdminDto> updateTrabajador(@PathVariable Long id, @Valid @RequestBody CreateUpdateTrabajadorDto trabajadorDto) {
+        TrabajadorAdminDto trabajadorActualizado = trabajadorService.updateTrabajador(id, trabajadorDto);
         return ResponseEntity.ok(trabajadorActualizado);
     }
 

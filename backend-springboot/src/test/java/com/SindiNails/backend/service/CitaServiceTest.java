@@ -5,6 +5,7 @@ import com.SindiNails.backend.dto.AdminCreateCitaDto;
 import com.SindiNails.backend.dto.CitaDto;
 import com.SindiNails.backend.dto.CitasPorDiaDto;
 import com.SindiNails.backend.dto.CreateCitaDto;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.EstadoCita;
@@ -184,21 +185,21 @@ class CitaServiceTest {
         @Test
         void no_se_puede_reservar_si_la_trabajadora_no_tiene_turno_ese_dia() {
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.plusDays(1).atTime(10, 0)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
         }
 
         @Test
         void no_se_puede_reservar_una_cita_que_empieza_antes_del_turno() {
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(9, 45)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
         }
 
         @Test
         void no_se_puede_reservar_una_cita_que_termina_despues_del_turno() {
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(13, 15)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
         }
 
@@ -207,7 +208,7 @@ class CitaServiceTest {
             datos.ausencia(sindi, manana.atTime(11, 0), manana.atTime(12, 0));
 
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 30)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("El horario seleccionado está bloqueado.");
         }
 
@@ -216,7 +217,7 @@ class CitaServiceTest {
             datos.bloqueoGlobal(manana.atTime(10, 0), manana.atTime(10, 30));
 
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 0)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("El horario seleccionado está bloqueado.");
         }
 
@@ -243,7 +244,7 @@ class CitaServiceTest {
             datos.turno(sindi, HOY, "08:00", "12:00");
 
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, HOY.atTime(9, 0)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("No se puede reservar una cita en el pasado.");
         }
 
@@ -262,7 +263,7 @@ class CitaServiceTest {
             datos.turno(deBaja, manana, "10:00", "14:00");
 
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, deBaja, manana.atTime(10, 0)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora seleccionada no está activa.");
         }
 
@@ -271,7 +272,7 @@ class CitaServiceTest {
             datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.createCita(reserva(manicura60, sindi, manana.atTime(10, 30)), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("El trabajador no está disponible en el horario seleccionado.");
         }
 
@@ -321,7 +322,7 @@ class CitaServiceTest {
 
             assertThat(creada.getCliente().getNombre()).isEqualTo("Marta");
             assertThatThrownBy(() -> citaService.createCitaByAdmin(reservaAdmin(marta.getId(), manana.atTime(15, 0))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
         }
 
@@ -383,7 +384,7 @@ class CitaServiceTest {
             datos.cita(datos.clienta("Marta"), sindi, manicura60, manana.atTime(12, 0), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, manana.atTime(11, 30))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
         }
 
@@ -392,7 +393,7 @@ class CitaServiceTest {
             Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, manana.atTime(17, 30))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
         }
 
@@ -402,7 +403,7 @@ class CitaServiceTest {
             Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sindi, HOY.atTime(8, 0))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("No se puede reservar una cita en el pasado.");
         }
 
@@ -434,7 +435,7 @@ class CitaServiceTest {
             datos.cita(datos.clienta("Marta"), sindi, manicura60, HOY.minusDays(1).atTime(11, 0), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.updateCita(deAyer.getId(), reserva(largo120, sindi, HOY.minusDays(1).atTime(10, 0))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("El trabajador no está disponible en el nuevo horario seleccionado.");
         }
 
@@ -443,7 +444,7 @@ class CitaServiceTest {
             Cita cancelada = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CANCELADA);
 
             assertThatThrownBy(() -> citaService.updateCita(cancelada.getId(), reserva(manicura60, sindi, manana.atTime(12, 0))))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("No se puede modificar una cita cancelada.");
         }
 
@@ -505,7 +506,7 @@ class CitaServiceTest {
             Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusHours(12).minusMinutes(1), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("No se puede cancelar la cita con menos de 12 horas de antelación.");
         }
 
@@ -514,7 +515,7 @@ class CitaServiceTest {
             Cita cita = datos.cita(laura, sindi, manicura60, AHORA.minusDays(2), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("No se puede cancelar una cita que ya ha pasado.");
         }
 
@@ -523,18 +524,18 @@ class CitaServiceTest {
             Cita cita = datos.cita(laura, sindi, manicura60, AHORA.plusDays(3), EstadoCita.CANCELADA);
 
             assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
                     .hasMessage("La cita ya está cancelada.");
         }
 
         @Test
-        void una_clienta_no_puede_cancelar_la_cita_de_otra() {
+        void una_clienta_no_puede_cancelar_la_cita_de_otra_y_se_le_responde_como_si_no_existiera() {
             Usuario marta = datos.clienta("Marta");
             Cita cita = datos.cita(marta, sindi, manicura60, AHORA.plusDays(3), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
-                    .isExactlyInstanceOf(IllegalStateException.class)
-                    .hasMessage("No tienes permiso para cancelar esta cita.");
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: " + cita.getId());
             assertThat(repositorioCita.findById(cita.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
         }
 

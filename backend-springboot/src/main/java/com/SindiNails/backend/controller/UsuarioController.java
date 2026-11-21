@@ -4,6 +4,7 @@ import com.SindiNails.backend.dto.UsuarioDto;
 import com.SindiNails.backend.dto.EditarUsuarioDto;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -33,7 +34,7 @@ public class UsuarioController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<UsuarioDto> updateAuthenticatedUser(@AuthenticationPrincipal Usuario usuario, @RequestBody EditarUsuarioDto updateUserDto) {
+    public ResponseEntity<UsuarioDto> updateAuthenticatedUser(@AuthenticationPrincipal Usuario usuario, @Valid @RequestBody EditarUsuarioDto updateUserDto) {
         Usuario updatedUsuario = authService.editarUsuario(usuario, updateUserDto);
         UsuarioDto userDto = UsuarioDto.builder()
                 .id(updatedUsuario.getId())
