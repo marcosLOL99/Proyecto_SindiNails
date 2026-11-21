@@ -2,6 +2,7 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.CreateUpdateServicioDto;
 import com.SindiNails.backend.dto.ServicioDto;
+import com.SindiNails.backend.dto.TipoServicioDto;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.TipoServicio;
@@ -11,12 +12,32 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ServicioService {
 
     private final RepositorioServicios repositorioServicios;
     private final RepositorioTipoServicio repositorioTipoServicio;
+
+    /** El catálogo completo, o solo los servicios de un tipo si se indica. */
+    public List<ServicioDto> getServicios(Long tipoServicioId) {
+        var servicios = tipoServicioId != null
+                ? repositorioServicios.findByTipoServicioId(tipoServicioId)
+                : repositorioServicios.findAll();
+        return servicios.stream().map(ServicioDto::de).toList();
+    }
+
+    public ServicioDto getServicio(Long id) {
+        return repositorioServicios.findById(id)
+                .map(ServicioDto::de)
+                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
+    }
+
+    public List<TipoServicioDto> getTiposServicio() {
+        return repositorioTipoServicio.findAll().stream().map(TipoServicioDto::de).toList();
+    }
 
     @Transactional
     public ServicioDto createServicio(CreateUpdateServicioDto servicioDto) {

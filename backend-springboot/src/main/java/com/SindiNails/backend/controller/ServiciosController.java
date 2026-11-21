@@ -1,8 +1,7 @@
 package com.SindiNails.backend.controller;
 
-import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.dto.ServicioDto;
-import com.SindiNails.backend.repository.RepositorioServicios;
+import com.SindiNails.backend.service.ServicioService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,21 +17,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ServiciosController {
 
-    private final RepositorioServicios repositorioServicios;
+    private final ServicioService servicioService;
 
     @GetMapping
     public List<ServicioDto> getServices(@RequestParam(required = false) Long tipoServicioId) {
-        var servicios = tipoServicioId != null
-                ? repositorioServicios.findByTipoServicioId(tipoServicioId)
-                : repositorioServicios.findAll();
-        return servicios.stream().map(ServicioDto::de).toList();
+        return servicioService.getServicios(tipoServicioId);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ServicioDto> getServiceById(@PathVariable Long id) {
-        ServicioDto servicio = repositorioServicios.findById(id)
-                .map(ServicioDto::de)
-                .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado con id: " + id));
-        return ResponseEntity.ok(servicio);
+        return ResponseEntity.ok(servicioService.getServicio(id));
     }
 }
