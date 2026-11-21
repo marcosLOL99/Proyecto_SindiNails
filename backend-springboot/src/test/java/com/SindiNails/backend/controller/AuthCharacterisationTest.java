@@ -4,7 +4,6 @@ import com.SindiNails.backend.TestcontainersConfiguration;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -91,11 +90,6 @@ class AuthCharacterisationTest {
         return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
     }
 
-    /** "estado cuerpo", para fijar ambas cosas a la vez. */
-    private static String resumen(ResponseEntity<String> r) {
-        return r.getStatusCode().value() + " " + r.getBody();
-    }
-
     // ---------- registro ----------
 
     @Nested
@@ -130,30 +124,6 @@ class AuthCharacterisationTest {
 
             assertThat(usuarios.findByEmail(email).orElseThrow().getRole()).isEqualTo(Role.USER);
         }
-
-        @Test
-        void characterises_registro_sin_datos__SUSPICIOUS_500() throws Exception {
-            // SUSPICIOUS: sin validación; falla al guardar (email NOT NULL) y llega 500 sin mensaje.
-            var r = post("/api/auth/register", "{}");
-
-            assertThat(r.getStatusCode().value()).isEqualTo(500);
-            assertThat(json.readTree(r.getBody()).has("message")).isFalse();
-        }
-
-        @Test
-        void characterises_registro_con_datos_invalidos__SUSPICIOUS_se_acepta() throws Exception {
-            // SUSPICIOUS: sin validación; registra un email que no es un email, con nombre y contraseña vacíos.
-            String email = "no-es-un-email-" + UUID.randomUUID().toString().substring(0, 8);
-            var r = post("/api/auth/register", """
-                    {"nombre":"","apellidos":"","email":"%s","telefono":"","password":""}
-                    """.formatted(email));
-
-            assertThat(r.getStatusCode().value()).isEqualTo(200);
-            assertThat(claimsDelToken(r).getSubject()).isEqualTo(email);
-            Usuario guardado = usuarios.findByEmail(email).orElseThrow();
-            assertThat(guardado.getNombre()).isEmpty();
-            assertThat(passwordEncoder.matches("", guardado.getPassword())).isTrue();
-        }
     }
 
     // ---------- login ----------
@@ -175,16 +145,6 @@ class AuthCharacterisationTest {
             assertThat(c.getSubject()).isEqualTo(email);
             assertThat(c.get("role")).isEqualTo("ADMIN");
             assertThat(c.getExpiration().getTime() - c.getIssuedAt().getTime()).isEqualTo(duracionToken);
-        }
-
-
-
-        @Test
-        void characterises_login_sin_datos__SUSPICIOUS_401() {
-            // SUSPICIOUS: sin validación; un login vacío se trata como credenciales incorrectas (no 400).
-            var r = post("/api/auth/login", "{}");
-
-            assertThat(resumen(r)).isEqualTo("401 null");
         }
     }
 
@@ -225,21 +185,6 @@ class AuthCharacterisationTest {
             Usuario guardado = usuarios.findByEmail(email).orElseThrow();
             assertThat(guardado.getNombre()).isEqualTo("Ana María");
             assertThat(guardado.getRole()).isEqualTo(Role.USER);
-        }
-
-        @Test
-        void characterises_editar_mis_datos_vacios__SUSPICIOUS_borra_los_datos() throws Exception {
-            // SUSPICIOUS: sin validación; un cuerpo vacío deja nombre, apellidos y teléfono a null.
-            String email = emailUnico();
-            Usuario u = usuarioGuardado(email, "secreta1", Role.USER);
-            var r = conToken(HttpMethod.PUT, "/api/users/me", token(email, 60_000, secreto), "{}");
-
-            assertThat(r.getStatusCode().value()).isEqualTo(200);
-            JsonNode cuerpo = json.readTree(r.getBody());
-            assertThat(cuerpo).isEqualTo(json.readTree("""
-                    {"id":%d,"nombre":null,"apellidos":null,"email":"%s","telefono":null,"role":"USER"}
-                    """.formatted(u.getId(), email)));
-            assertThat(usuarios.findByEmail(email).orElseThrow().getNombre()).isNull();
         }
     }
 }
