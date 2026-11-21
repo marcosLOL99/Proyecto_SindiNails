@@ -103,6 +103,16 @@ class AutenticacionTest {
         }
 
         @Test
+        void con_token_vacio() {
+            assertThat(get("/api/users/me", "")).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        @Test
+        void con_token_en_blanco() {
+            assertThat(get("/api/users/me", "   ")).isEqualTo(HttpStatus.UNAUTHORIZED);
+        }
+
+        @Test
         void con_token_mal_formado() {
             assertThat(get("/api/users/me", "esto-no-es-un-jwt")).isEqualTo(HttpStatus.UNAUTHORIZED);
         }
@@ -134,6 +144,11 @@ class AutenticacionTest {
         void una_clienta_en_la_administracion_recibe_403() {
             String token = jwtService.generateToken(usuario(Role.USER));
             assertThat(get("/api/admin/citas", token)).isEqualTo(HttpStatus.FORBIDDEN);
+        }
+
+        @Test
+        void un_token_vacio_no_impide_ver_el_catalogo_publico() {
+            assertThat(get("/api/servicios", "")).isEqualTo(HttpStatus.OK);
         }
 
         @Test
