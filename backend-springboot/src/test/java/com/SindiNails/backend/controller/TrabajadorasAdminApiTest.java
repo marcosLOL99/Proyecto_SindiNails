@@ -94,10 +94,10 @@ class TrabajadorasAdminApiTest {
         datos.turno(sindi, DIA, "10:00", "14:00");
 
         var r = peticion(HttpMethod.PUT, "/api/admin/trabajadores/" + sindi.getId(), """
-                {"nombre":"Sindi","apellidos":"López","activo":false}
+                {"nombre":"Sindy","apellidos":"López","activo":false}
                 """);
 
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
-        assertThat(json.readTree(r.getBody())).isEqualTo(trabajadora(sindi.getId(), "Sindi", "López", false));
+        assertThat(json.readTree(r.getBody())).isEqualTo(trabajadora(sindi.getId(), "Sindy", "López", false));
     }
 }
