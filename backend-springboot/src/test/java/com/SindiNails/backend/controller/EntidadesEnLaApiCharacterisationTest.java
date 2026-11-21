@@ -111,6 +111,40 @@ class EntidadesEnLaApiCharacterisationTest {
                 .formatted(s.getId(), s.getTipoServicio().getId()));
     }
 
+    @Test
+    void characterises_catalogo_filtrado_por_tipo() {
+        var s = datos.servicio("Manicura francesa", 45);
+
+        var r = peticion(HttpMethod.GET, "/api/servicios?tipoServicioId=" + s.getTipoServicio().getId(), null, null);
+
+        assertThat(resumen(r)).isEqualTo("""
+                200 [{"id":%d,"nombre":"Manicura francesa","descripcion":"Manicura francesa","precio":20.0,"duracionEnMinutos":45,"tipoServicio":{"id":%d,"nombre":"Manicura"}}]"""
+                .formatted(s.getId(), s.getTipoServicio().getId()));
+    }
+
+    @Test
+    void characterises_catalogo_completo() {
+        var s = datos.servicio("Esmaltado", 30);
+
+        var r = peticion(HttpMethod.GET, "/api/servicios", null, null);
+
+        assertThat(r.getStatusCode().value()).isEqualTo(200);
+        assertThat(r.getBody()).startsWith("[").contains("""
+                {"id":%d,"nombre":"Esmaltado","descripcion":"Esmaltado","precio":20.0,"duracionEnMinutos":30,"tipoServicio":{"id":%d,"nombre":"Manicura"}}"""
+                .formatted(s.getId(), s.getTipoServicio().getId()));
+    }
+
+    @Test
+    void characterises_tipos_de_servicio() {
+        var tipo = datos.servicio("Uñas acrílicas", 90).getTipoServicio();
+
+        var r = peticion(HttpMethod.GET, "/api/tiposervicios", null, null);
+
+        assertThat(r.getStatusCode().value()).isEqualTo(200);
+        assertThat(r.getBody()).startsWith("[").contains("""
+                {"id":%d,"nombre":"Manicura"}""".formatted(tipo.getId()));
+    }
+
     // ---------- trabajadoras ----------
 
     @Test
