@@ -83,6 +83,19 @@ class ErroresApiTest {
     }
 
     @Test
+    void cancelar_la_cita_de_otra_clienta_responde_404_igual_que_una_cita_que_no_existe() {
+        var cita = datos.cita(usuario(Role.USER), datos.trabajadora("Sindi"), datos.servicio("Manicura", 60),
+                LocalDateTime.now().plusDays(3), EstadoCita.CONFIRMADA);
+        Usuario otra = usuario(Role.USER);
+
+        var deOtra = peticion(HttpMethod.PATCH, "/api/citas/" + cita.getId() + "/cancelar", otra, null);
+        var inexistente = peticion(HttpMethod.PATCH, "/api/citas/999999999/cancelar", otra, null);
+
+        assertThat(deOtra.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(inexistente.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void un_bloqueo_de_trabajadora_sin_trabajadora_responde_400_con_el_mensaje() throws Exception {
         var r = peticion(HttpMethod.POST, "/api/admin/bloqueos", usuario(Role.ADMIN), """
                 {"fechaHoraInicio":"2030-01-10T10:00:00","fechaHoraFin":"2030-01-10T12:00:00",

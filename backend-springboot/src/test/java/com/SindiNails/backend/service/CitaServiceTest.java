@@ -529,13 +529,13 @@ class CitaServiceTest {
         }
 
         @Test
-        void una_clienta_no_puede_cancelar_la_cita_de_otra() {
+        void una_clienta_no_puede_cancelar_la_cita_de_otra_y_se_le_responde_como_si_no_existiera() {
             Usuario marta = datos.clienta("Marta");
             Cita cita = datos.cita(marta, sindi, manicura60, AHORA.plusDays(3), EstadoCita.CONFIRMADA);
 
             assertThatThrownBy(() -> citaService.cancelarCita(cita.getId(), laura))
-                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
-                    .hasMessage("No tienes permiso para cancelar esta cita.");
+                    .isExactlyInstanceOf(ResourceNotFoundException.class)
+                    .hasMessage("Cita no encontrada con id: " + cita.getId());
             assertThat(repositorioCita.findById(cita.getId()).orElseThrow().getEstado()).isEqualTo(EstadoCita.CONFIRMADA);
         }
 

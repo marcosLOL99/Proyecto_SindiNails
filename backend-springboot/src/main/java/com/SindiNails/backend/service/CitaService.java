@@ -167,9 +167,9 @@ public class CitaService {
         Cita cita = repositorioCita.findById(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
 
-        // 1. Verificar que el usuario es el dueño de la cita
+        // 1. Solo la dueña: a cualquier otra se le responde como si la cita no existiera (no revela qué ids existen)
         if (!cita.getCliente().getId().equals(cliente.getId())) {
-            throw new ReglaDeNegocioException("No tienes permiso para cancelar esta cita.");
+            throw new ResourceNotFoundException("Cita no encontrada con id: " + citaId);
         }
 
         if (cita.getEstado() == EstadoCita.CANCELADA) {
