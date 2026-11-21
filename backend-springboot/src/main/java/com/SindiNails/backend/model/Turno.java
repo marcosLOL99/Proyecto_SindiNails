@@ -3,8 +3,6 @@ package com.SindiNails.backend.model;
 import java.time.LocalTime;
 import java.time.LocalDate;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
-
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -30,7 +28,6 @@ public class Turno {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "trabajador_id", nullable = false)
-    @JsonBackReference
     private Trabajador trabajador;
 
     @Column(nullable = false)
