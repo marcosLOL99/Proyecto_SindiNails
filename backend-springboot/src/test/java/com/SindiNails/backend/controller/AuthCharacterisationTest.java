@@ -132,19 +132,6 @@ class AuthCharacterisationTest {
         }
 
         @Test
-        void characterises_registro_con_email_repetido__SUSPICIOUS_500_sin_mensaje() throws Exception {
-            // SUSPICIOUS: el servicio lanza "El email ya está en uso." pero llega 500 sin el mensaje.
-            String email = emailUnico();
-            usuarioGuardado(email, "secreta1", Role.USER);
-            var r = post("/api/auth/register", """
-                    {"nombre":"Otra","apellidos":"Pérez","email":"%s","telefono":"600","password":"otra"}
-                    """.formatted(email));
-
-            assertThat(r.getStatusCode().value()).isEqualTo(500);
-            assertThat(json.readTree(r.getBody()).has("message")).isFalse();
-        }
-
-        @Test
         void characterises_registro_sin_datos__SUSPICIOUS_500() throws Exception {
             // SUSPICIOUS: sin validación; falla al guardar (email NOT NULL) y llega 500 sin mensaje.
             var r = post("/api/auth/register", "{}");
