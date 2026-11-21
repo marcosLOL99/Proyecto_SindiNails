@@ -20,7 +20,8 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Registro, login y edición del perfil rechazan los datos incompletos o no válidos con 400
+ * Registro, login, edición del perfil y edición de una clienta desde la administración (teléfono obligatorio)
+ * rechazan los datos incompletos o no válidos con 400
  * y los mensajes de los campos (ordenados por campo), sin guardar nada.
  * Mismas reglas que el formulario de registro del frontend: todos los campos obligatorios y un email válido.
  *
@@ -109,5 +110,21 @@ class ValidacionAutenticacionTest {
         assertThat(guardada.getNombre()).isEqualTo("Ana");
         assertThat(guardada.getApellidos()).isEqualTo("Pérez");
         assertThat(guardada.getTelefono()).isEqualTo("600000000");
+    }
+
+    @Test
+    void la_administracion_no_puede_dejar_a_una_clienta_sin_telefono() throws Exception {
+        Usuario ana = usuarios.save(Usuario.builder().nombre("Ana").apellidos("Pérez").email(emailUnico())
+                .telefono("600000000").password(passwordEncoder.encode("secreta1")).role(Role.USER).build());
+        Usuario admin = usuarios.save(Usuario.builder().nombre("Admin").apellidos("Salón").email(emailUnico())
+                .telefono("600000001").password(passwordEncoder.encode("secreta1")).role(Role.ADMIN).build());
+
+        var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), admin, """
+                {"nombre":"Ana","apellidos":"Pérez","email":"%s","telefono":"  ","role":"USER"}
+                """.formatted(ana.getEmail()));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("El teléfono es obligatorio.");
+        assertThat(usuarios.findByEmail(ana.getEmail()).orElseThrow().getTelefono()).isEqualTo("600000000");
     }
 }
