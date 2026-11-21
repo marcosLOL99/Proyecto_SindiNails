@@ -83,6 +83,21 @@ class AutenticacionTest {
         }
 
         @Test
+        void el_401_indica_que_hace_falta_un_token_bearer() {
+            var sinToken = http.exchange("/api/users/me", HttpMethod.GET, HttpEntity.EMPTY, String.class);
+            HttpHeaders h = new HttpHeaders();
+            h.setContentType(MediaType.APPLICATION_JSON);
+            var loginMalo = http.exchange("/api/auth/login", HttpMethod.POST, new HttpEntity<>("""
+                    {"email":"nadie@test.com","password":"mala"}
+                    """, h), String.class);
+
+            assertThat(sinToken.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(sinToken.getHeaders().get(HttpHeaders.WWW_AUTHENTICATE)).containsExactly("Bearer");
+            assertThat(loginMalo.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+            assertThat(loginMalo.getHeaders().get(HttpHeaders.WWW_AUTHENTICATE)).containsExactly("Bearer");
+        }
+
+        @Test
         void sin_token_en_la_administracion() {
             assertThat(get("/api/admin/citas", null)).isEqualTo(HttpStatus.UNAUTHORIZED);
         }

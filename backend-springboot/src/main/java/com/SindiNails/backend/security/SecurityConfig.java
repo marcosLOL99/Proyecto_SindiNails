@@ -8,7 +8,7 @@ import org.springframework.security.authentication.AuthenticationProvider;
 import jakarta.servlet.DispatcherType;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -51,9 +51,12 @@ public class SecurityConfig {
 
                         .anyRequest().authenticated()
                 )
-                // Sin sesión válida (sin token, token no válido o credenciales incorrectas): 401.
-                // Con sesión pero sin permiso sigue siendo 403.
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                // Sin sesión válida (sin token, token no válido o credenciales incorrectas): 401 con
+                // "WWW-Authenticate: Bearer", como exige HTTP. Con sesión pero sin permiso sigue siendo 403.
+                .exceptionHandling(ex -> ex.authenticationEntryPoint((request, response, authException) -> {
+                    response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Bearer");
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                }))
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
