@@ -28,11 +28,11 @@ public class ManejadorDeErrores {
         return conMensaje(HttpStatus.BAD_REQUEST, e);
     }
 
-    /** Varios campos no válidos: sus mensajes, ordenados por campo para que la respuesta sea siempre la misma. */
+    /** Campos no válidos: sus mensajes, ordenados por campo y luego por mensaje para que la respuesta sea siempre la misma. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> camposNoValidos(MethodArgumentNotValidException e) {
         String mensaje = e.getBindingResult().getFieldErrors().stream()
-                .sorted(Comparator.comparing(FieldError::getField))
+                .sorted(Comparator.comparing(FieldError::getField).thenComparing(FieldError::getDefaultMessage))
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(" "));
         return conMensaje(HttpStatus.BAD_REQUEST, mensaje);

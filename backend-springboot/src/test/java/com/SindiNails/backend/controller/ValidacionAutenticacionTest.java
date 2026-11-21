@@ -75,6 +75,19 @@ class ValidacionAutenticacionTest {
     }
 
     @Test
+    void un_campo_que_incumple_dos_reglas_da_sus_mensajes_siempre_en_el_mismo_orden() throws Exception {
+        // "   " incumple @NotBlank y @Email; el validador no garantiza en qué orden los informa.
+        for (int i = 0; i < 20; i++) {
+            var r = peticion(HttpMethod.POST, "/api/auth/register", null, """
+                    {"nombre":"Ana","apellidos":"Pérez","email":"   ","telefono":"600","password":"secreta1"}
+                    """);
+
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("El email es obligatorio. El email no es válido.");
+        }
+    }
+
+    @Test
     void iniciar_sesion_sin_datos_responde_400_y_no_401() throws Exception {
         var r = peticion(HttpMethod.POST, "/api/auth/login", null, "{}");
 
