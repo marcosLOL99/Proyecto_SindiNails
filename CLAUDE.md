@@ -8,6 +8,16 @@ Comunicación con el usuario: **en español**.
 
 ---
 
+## Plan de fases → [`PLAN.md`](PLAN.md)
+
+El plan de todas las fases, la fase en curso y el siguiente paso están en [`PLAN.md`](PLAN.md).
+
+- **Al empezar cada sesión, antes de tocar nada:** `git fetch --all`, comprueba que la rama local no va por detrás de `origin` (si va, actualízala) y sigue la sección "Cómo retomar el trabajo" de `PLAN.md`.
+- **Al terminar un paso:** márcalo `[x]` en su fase.
+- **Al cerrar una fase:** márcala ✅ en la tabla "Dónde estamos" y **borra la sección entera de la fase con todos sus pasos**, para que el archivo se vaya acortando. Lo hecho queda en el historial de git y en el commit de merge de la fase.
+
+---
+
 ## Stack
 
 Frontend en JavaScript (`.jsx`), sin TypeScript.
