@@ -277,7 +277,110 @@ class TurnosAdminApiTest {
         assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
     }
 
+    // ---------------------------------------------------------------- citas que quedarían fuera de turno
+
+    private static final String CITAS_FUERA =
+            "Hay citas sin cancelar que quedarían fuera del horario de la trabajadora. Muévelas o cancélalas antes.";
+
+    @Test
+    void editar_un_turno_dejando_fuera_una_cita_futura_responde_409_y_no_lo_cambia() throws Exception {
+        Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        var acortado = editar(id, sindi, LUNES, "10:00", "12:30");
+        var otroDia = editar(id, sindi, LUNES.plusDays(1), "10:00", "14:00");
+        var otraTrabajadora = editar(id, datos.trabajadora("Ana"), LUNES, "10:00", "14:00");
+
+        for (var r : List.of(acortado, otroDia, otraTrabajadora)) {
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(mensaje(r)).isEqualTo(CITAS_FUERA);
+        }
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void editar_un_turno_que_sigue_cubriendo_sus_citas_se_permite() {
+        Long id = idDeSinComprobar(crear(sindi, LUNES, "10:00", "14:00"));
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        assertThat(editar(id, sindi, LUNES, "11:00", "13:00").getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void borrar_un_turno_con_una_cita_futura_responde_409_y_no_lo_borra() throws Exception {
+        Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.PENDIENTE);
+
+        var r = admin(HttpMethod.DELETE, "/api/admin/turnos/" + id, null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(r)).isEqualTo(CITAS_FUERA);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void borrar_un_turno_con_otro_que_cubre_la_cita_se_permite() {
+        datos.turno(sindi, LUNES, "09:00", "15:00");
+        Long id = idDeSinComprobar(crear(sindi, LUNES.plusDays(1), "10:00", "14:00"));
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        assertThat(admin(HttpMethod.DELETE, "/api/admin/turnos/" + id, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void las_citas_canceladas_pasadas_o_de_otra_trabajadora_no_impiden_borrar_un_turno() {
+        LocalDate pasado = LocalDate.of(2020, 1, 6);
+        Long futuro = idDeSinComprobar(crear(sindi, LUNES, "10:00", "14:00"));
+        Long antiguo = idDeSinComprobar(crear(sindi, pasado, "10:00", "14:00"));
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CANCELADA);
+        cita(sindi, pasado.atTime(12, 0), EstadoCita.CONFIRMADA);
+        Trabajador ana = datos.trabajadora("Ana");
+        datos.turno(ana, LUNES, "10:00", "14:00");
+        cita(ana, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        assertThat(admin(HttpMethod.DELETE, "/api/admin/turnos/" + futuro, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(admin(HttpMethod.DELETE, "/api/admin/turnos/" + antiguo, null).getStatusCode())
+                .isEqualTo(HttpStatus.NO_CONTENT);
+    }
+
+    @Test
+    void rehacer_la_semana_dejando_fuera_una_cita_futura_responde_409_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"16:00","horaFin":"20:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(r)).isEqualTo(CITAS_FUERA);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void rehacer_la_semana_con_un_horario_que_cubre_las_citas_se_permite() throws Exception {
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"09:00","horaFin":"18:00","horaInicioDescanso":"14:00","horaFinDescanso":"15:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 09:00-14:00", "2030-01-07 15:00-18:00");
+    }
+
     // ---------------------------------------------------------------- utilidades
+
+    private void cita(Trabajador t, java.time.LocalDateTime inicio, EstadoCita estado) {
+        datos.cita(datos.clienta("Laura"), t, datos.servicio("Semipermanente", 60), inicio, estado);
+    }
+
+    private static Long idDeSinComprobar(ResponseEntity<String> r) {
+        return Long.valueOf(r.getBody().replaceAll("(?s).*?\"id\":(\\d+).*", "$1"));
+    }
 
     private ResponseEntity<String> crear(Trabajador t, LocalDate fecha, String inicio, String fin) {
         return admin(HttpMethod.POST, "/api/admin/turnos", turnoJson(t, fecha, inicio, fin));

@@ -6,15 +6,19 @@ import com.SindiNails.backend.dto.TurnoDto;
 import com.SindiNails.backend.exception.PeticionNoValidaException;
 import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
+import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Turno;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RepositorioTurno;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +30,8 @@ public class TurnoService {
 
     private final RepositorioTurno turnoRepository;
     private final RepositorioTrabajador trabajadorRepository;
+    private final RepositorioCita citaRepository;
+    private final Clock clock;
 
     public List<TurnoDto> getTurnosByTrabajador(Long trabajadorId) {
         if (!trabajadorRepository.existsById(trabajadorId)) {
@@ -63,6 +69,14 @@ public class TurnoService {
 
         validarSinSolape(trabajador, turnoDto, id);
 
+        Long trabajadorAnterior = turno.getTrabajador().getId();
+        LocalDate fechaAnterior = turno.getFecha();
+        List<Franja> quedan = franjasDelDiaSin(trabajadorAnterior, fechaAnterior, id);
+        if (trabajadorAnterior.equals(trabajador.getId()) && fechaAnterior.equals(turnoDto.getFecha())) {
+            quedan.add(new Franja(turnoDto.getHoraInicio(), turnoDto.getHoraFin()));
+        }
+        validarCitasCubiertas(trabajadorAnterior, fechaAnterior, quedan);
+
         turno.setTrabajador(trabajador);
         turno.setFecha(turnoDto.getFecha());
         turno.setHoraInicio(turnoDto.getHoraInicio());
@@ -77,14 +91,6 @@ public class TurnoService {
         batchDto.getHorarios().forEach(TurnoService::validarDia);
         Trabajador trabajador = trabajadorRepository.findById(batchDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + batchDto.getTrabajadorId()));
-
-        LocalDate fechaFinSemana = batchDto.getFechaInicioSemana().plusDays(6);
-        List<Turno> turnosExistentes = trabajador.getTurnos().stream()
-                .filter(t -> !t.getFecha().isBefore(batchDto.getFechaInicioSemana()) && !t.getFecha().isAfter(fechaFinSemana))
-                .collect(Collectors.toList());
-        
-        trabajador.getTurnos().removeAll(turnosExistentes);
-        turnoRepository.deleteAll(turnosExistentes);
 
         List<Turno> nuevosTurnos = new ArrayList<>();
         batchDto.getHorarios().forEach((diaIndex, horario) -> {
@@ -101,6 +107,22 @@ public class TurnoService {
             }
         });
 
+        for (int dia = 0; dia <= 6; dia++) {
+            LocalDate fecha = batchDto.getFechaInicioSemana().plusDays(dia);
+            List<Franja> franjas = nuevosTurnos.stream()
+                    .filter(t -> t.getFecha().equals(fecha))
+                    .map(t -> new Franja(t.getHoraInicio(), t.getHoraFin()))
+                    .collect(Collectors.toList());
+            validarCitasCubiertas(trabajador.getId(), fecha, franjas);
+        }
+
+        LocalDate fechaFinSemana = batchDto.getFechaInicioSemana().plusDays(6);
+        List<Turno> turnosExistentes = trabajador.getTurnos().stream()
+                .filter(t -> !t.getFecha().isBefore(batchDto.getFechaInicioSemana()) && !t.getFecha().isAfter(fechaFinSemana))
+                .collect(Collectors.toList());
+        trabajador.getTurnos().removeAll(turnosExistentes);
+        turnoRepository.deleteAll(turnosExistentes);
+
         List<Turno> turnosGuardados = turnoRepository.saveAll(nuevosTurnos);
         return turnosGuardados.stream()
                 .map(this::mapToDto)
@@ -108,10 +130,44 @@ public class TurnoService {
     }
 
     public void deleteTurno(Long id) {
-        if (!turnoRepository.existsById(id)) {
-            throw new ResourceNotFoundException("No se encontró el turno con ID: " + id);
+        Turno turno = turnoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
+        Long trabajadorId = turno.getTrabajador().getId();
+        validarCitasCubiertas(trabajadorId, turno.getFecha(), franjasDelDiaSin(trabajadorId, turno.getFecha(), id));
+        turnoRepository.delete(turno);
+    }
+
+    /** Un tramo horario de un día. */
+    private record Franja(LocalTime inicio, LocalTime fin) {
+        boolean cubre(Cita cita, LocalDate fecha) {
+            return cita.getFechaHoraFin().toLocalDate().equals(fecha)
+                    && !cita.getFechaHoraInicio().toLocalTime().isBefore(inicio)
+                    && !cita.getFechaHoraFin().toLocalTime().isAfter(fin);
         }
-        turnoRepository.deleteById(id);
+    }
+
+    /** Los turnos de la trabajadora ese día, sin el turno turnoId (el que se edita o se borra). */
+    private List<Franja> franjasDelDiaSin(Long trabajadorId, LocalDate fecha, Long turnoId) {
+        return turnoRepository.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(trabajadorId, fecha).stream()
+                .filter(t -> !t.getId().equals(turnoId))
+                .map(t -> new Franja(t.getHoraInicio(), t.getHoraFin()))
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /**
+     * Tras el cambio, cada cita sin cancelar y todavía por empezar de la trabajadora ese día tiene que seguir
+     * entera dentro de uno de sus turnos (la misma regla que al reservar). Las citas pasadas no cuentan.
+     */
+    private void validarCitasCubiertas(Long trabajadorId, LocalDate fecha, List<Franja> franjas) {
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        boolean algunaFuera = citaRepository.findCitasSolapadas(trabajadorId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay())
+                .stream()
+                .filter(cita -> cita.getFechaHoraInicio().isAfter(ahora))
+                .anyMatch(cita -> franjas.stream().noneMatch(franja -> franja.cubre(cita, fecha)));
+        if (algunaFuera) {
+            throw new ReglaDeNegocioException(
+                    "Hay citas sin cancelar que quedarían fuera del horario de la trabajadora. Muévelas o cancélalas antes.");
+        }
     }
 
     /** Otro turno de la trabajadora ese día (sin contar el que se edita, turnoId) no puede pisarlo; contiguos sí. */

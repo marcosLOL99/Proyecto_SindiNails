@@ -2,15 +2,20 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.BloqueoDto;
 import com.SindiNails.backend.exception.PeticionNoValidaException;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
+import com.SindiNails.backend.model.Cita;
 import com.SindiNails.backend.model.PeriodoNoDisponible;
 import com.SindiNails.backend.model.TipoBloqueo;
 import com.SindiNails.backend.model.Trabajador;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -20,6 +25,8 @@ public class PeriodoNoDisponibleService {
 
     private final RopositorioPeriodoNoDisp periodoNoDisponibleRepository;
     private final RepositorioTrabajador trabajadorRepository;
+    private final RepositorioCita citaRepository;
+    private final Clock clock;
 
     public BloqueoDto crearBloqueo(BloqueoDto bloqueoDto) {
         if (!bloqueoDto.getFechaHoraFin().isAfter(bloqueoDto.getFechaHoraInicio())) {
@@ -39,6 +46,8 @@ public class PeriodoNoDisponibleService {
                     .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + bloqueoDto.getTrabajadorId()));
             periodo.setTrabajador(trabajador);
         }
+
+        validarSinCitasDentro(periodo);
 
         PeriodoNoDisponible savedPeriodo = periodoNoDisponibleRepository.save(periodo);
         return toDto(savedPeriodo);
@@ -64,6 +73,21 @@ public class PeriodoNoDisponibleService {
             throw new ResourceNotFoundException("Periodo de bloqueo no encontrado con id: " + id);
         }
         periodoNoDisponibleRepository.deleteById(id);
+    }
+
+    /**
+     * Una ausencia no puede pisar citas sin cancelar y todavía por empezar de su trabajadora,
+     * ni un bloqueo global las de ninguna. Las citas pasadas no cuentan.
+     */
+    private void validarSinCitasDentro(PeriodoNoDisponible periodo) {
+        List<Cita> pisadas = periodo.getTipo() == TipoBloqueo.TRABAJADOR
+                ? citaRepository.findCitasSolapadas(periodo.getTrabajador().getId(),
+                        periodo.getFechaHoraInicio(), periodo.getFechaHoraFin())
+                : citaRepository.findCitasSolapadasDeTodas(periodo.getFechaHoraInicio(), periodo.getFechaHoraFin());
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        if (pisadas.stream().anyMatch(cita -> cita.getFechaHoraInicio().isAfter(ahora))) {
+            throw new ReglaDeNegocioException("Hay citas sin cancelar en ese periodo. Muévelas o cancélalas antes.");
+        }
     }
 
     private BloqueoDto toDto(PeriodoNoDisponible periodo) {

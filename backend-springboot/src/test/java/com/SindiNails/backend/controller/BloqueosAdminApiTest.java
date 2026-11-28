@@ -37,6 +37,13 @@ class BloqueosAdminApiTest {
 
     private static final LocalDateTime DIA = LocalDateTime.of(2030, 1, 7, 0, 0);
 
+    /*
+     * Un bloqueo global choca con las citas de cualquier trabajadora, y la base de datos de los tests es compartida
+     * (otros tests dejan citas en 2030). Los tests que crean bloqueos globales válidos usan días propios de 2031.
+     */
+    private static final LocalDateTime DIA_GLOBALES_ORDENADOS = LocalDateTime.of(2031, 2, 3, 0, 0);
+    private static final LocalDateTime DIA_GLOBAL_CON_CITA = LocalDateTime.of(2031, 3, 3, 0, 0);
+
     @Autowired TestRestTemplate http;
     @Autowired DatosDePrueba datos;
     @Autowired RepositorioUsuario usuarios;
@@ -71,12 +78,13 @@ class BloqueosAdminApiTest {
 
     @Test
     void los_bloqueos_globales_salen_ordenados_por_fecha_y_hora() throws Exception {
-        global(DIA.plusDays(1).withHour(10), DIA.plusDays(1).withHour(12));
-        global(DIA.withHour(16), DIA.withHour(18));
-        global(DIA.withHour(10), DIA.withHour(12));
+        LocalDateTime dia = DIA_GLOBALES_ORDENADOS;
+        global(dia.plusDays(1).withHour(10), dia.plusDays(1).withHour(12));
+        global(dia.withHour(16), dia.withHour(18));
+        global(dia.withHour(10), dia.withHour(12));
 
         assertThat(inicios(admin(HttpMethod.GET, "/api/admin/bloqueos/globales", null)))
-                .containsExactly("2030-01-07T10:00:00", "2030-01-07T16:00:00", "2030-01-08T10:00:00");
+                .containsExactly("2031-02-03T10:00:00", "2031-02-03T16:00:00", "2031-02-04T10:00:00");
     }
 
     @Test
@@ -141,7 +149,49 @@ class BloqueosAdminApiTest {
         }
     }
 
+    // ---------------------------------------------------------------- citas dentro del periodo
+
+    @Test
+    void una_ausencia_que_pisa_una_cita_futura_de_la_trabajadora_responde_409_y_no_se_guarda() throws Exception {
+        cita(sindi, DIA.withHour(11), EstadoCita.CONFIRMADA);
+
+        var r = ausencia(sindi, DIA.withHour(11).withMinute(30), DIA.withHour(14));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(r)).isEqualTo("Hay citas sin cancelar en ese periodo. Muévelas o cancélalas antes.");
+        assertThat(inicios(admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/" + sindi.getId(), null))).isEmpty();
+    }
+
+    @Test
+    void un_bloqueo_global_que_pisa_una_cita_futura_de_cualquier_trabajadora_responde_409_y_no_se_guarda() throws Exception {
+        LocalDateTime dia = DIA_GLOBAL_CON_CITA;
+        cita(datos.trabajadora("Ana"), dia.withHour(11), EstadoCita.PENDIENTE);
+
+        var r = global(dia, dia.plusDays(1));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(r)).isEqualTo("Hay citas sin cancelar en ese periodo. Muévelas o cancélalas antes.");
+        assertThat(inicios(admin(HttpMethod.GET, "/api/admin/bloqueos/globales", null))).isEmpty();
+    }
+
+    @Test
+    void las_citas_canceladas_pasadas_contiguas_o_de_otra_trabajadora_no_impiden_una_ausencia() {
+        cita(sindi, DIA.withHour(11), EstadoCita.CANCELADA);
+        cita(sindi, DIA.withHour(9), EstadoCita.CONFIRMADA);
+        cita(sindi, DIA.withHour(14), EstadoCita.CONFIRMADA);
+        cita(datos.trabajadora("Ana"), DIA.withHour(11), EstadoCita.CONFIRMADA);
+
+        assertThat(ausencia(sindi, DIA.withHour(10), DIA.withHour(14)).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        LocalDateTime pasado = LocalDateTime.of(2020, 1, 6, 10, 0);
+        cita(sindi, pasado.plusHours(1), EstadoCita.CONFIRMADA);
+        assertThat(ausencia(sindi, pasado, pasado.plusHours(4)).getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
     // ---------------------------------------------------------------- utilidades
+
+    private void cita(Trabajador t, LocalDateTime inicio, EstadoCita estado) {
+        datos.cita(datos.clienta("Laura"), t, datos.servicio("Semipermanente", 60), inicio, estado);
+    }
 
     /** Inicio de cada periodo del listado con el motivo de este test, en el orden en que llegan. */
     private List<String> inicios(ResponseEntity<String> r) throws Exception {

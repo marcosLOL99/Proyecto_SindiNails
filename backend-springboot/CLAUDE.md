@@ -11,6 +11,18 @@ Fijadas por tests permanentes en `CitaServiceTest` (reloj congelado con `RelojFi
 - **Cancelar** (clienta): solo la dueña (a otra clienta se le responde 404, como si la cita no existiera, para no revelar qué citas existen), con 12 horas o más de antelación (justo 12 h vale); no una cita ya cancelada ni una que ya ha pasado (cada caso con su mensaje).
 - **Resumen semanal del panel**: últimos 7 días (desde hace 6 días a las 00:00), sin contar las canceladas.
 
+## Reglas de turnos, ausencias y bloqueos (`TurnoService`, `PeriodoNoDisponibleService`)
+
+Fijadas en la Fase 3 por `TurnosAdminApiTest` y `BloqueosAdminApiTest`:
+
+- **Turnos**: acaban después de empezar (400); dos turnos de la misma trabajadora el mismo día no se solapan (409; contiguos sí). Los listados salen por fecha y hora.
+- **Semana en lote** (`/turnos/batch`): días del 0 (lunes) al 6 (domingo); horarios obligatorios; un día activo necesita sus horas; el descanso cae estrictamente dentro del horario (400). Sustituye solo los turnos de esa semana, y nada se borra si la petición no es válida.
+- **Citas protegidas**: editar o borrar un turno, o rehacer la semana, no puede dejar una cita sin cancelar y todavía por empezar fuera de turno; crear una ausencia no puede pisar las de su trabajadora, ni un bloqueo global las de ninguna (409 con mensaje). Las citas pasadas no cuentan.
+- **Ausencias y bloqueos**: acaban después de empezar (400); las ausencias de una trabajadora que no existe → 404.
+- Un cuerpo ilegible (JSON mal formado, fecha mal escrita, tipo desconocido) → 400 "La petición no tiene un formato válido." (`ManejadorDeErrores`).
+
+En los tests HTTP la base de datos es compartida entre clases: un bloqueo global choca con las citas que otros tests dejan, así que los tests que crean bloqueos globales válidos usan días propios (2031).
+
 Lo que todavía no tiene test permanente sigue en `CitaServiceCharacterisationTest` (huecos con citas y bloqueos, días no disponibles, borrar, listados): se sustituirá al refactorizar `CitaService`.
 
 Notas de diseño para el refactor: la regla "el hueco cabe en un turno y no pisa ausencias, bloqueos ni citas" está escrita dos veces, en `validarHorarioReservable` (al reservar) y en `getHorariosDisponibles` + `isOverlapping` (al ofrecer huecos); conviene una sola comprobación para que lo que se ofrece y lo que se acepta no se separen; `getDiasNoDisponibles` llama a `getHorariosDisponibles` 42 veces, con varias consultas en cada llamada; `createCita` y `updateCita` repiten la carga de servicio y trabajadora y el cálculo del fin.

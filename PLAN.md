@@ -58,13 +58,13 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
   - [x] C4: borrar una clienta con citas responde 409 con mensaje y no borra nada (sus citas son el historial del salón).
 - [x] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
 - [x] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
-- [ ] 3.5 Corregir lo encontrado en 3.3 (T1–T7) y 3.4 (B1–B5), decidido con el usuario (un paso `tdd` cada uno):
+- [x] 3.5 Corregir lo encontrado en 3.3 (T1–T7) y 3.4 (B1–B5), decidido con el usuario (un paso `tdd` cada uno):
   - [x] Listados de turnos y de ausencias o bloqueos ordenados por fecha y hora (T7, B4).
   - [x] Ausencias de una trabajadora que no existe → 404, como sus turnos (B5).
   - [x] Un turno o un periodo no disponible debe acabar después de empezar, y el descanso del lote debe caer dentro del horario → 400 (T1, B1).
   - [x] Dos turnos de la misma trabajadora el mismo día no pueden solaparse → 409 (T2).
   - [x] Lote semanal: días del 0 al 6, horarios obligatorios, un día activo necesita sus horas, y mensajes que dicen qué falta; un tipo de bloqueo desconocido o un cuerpo mal formado → 400 con mensaje (T4, T5, T6, B3).
-  - [ ] Editar o borrar turnos, rehacer la semana o crear una ausencia o un bloqueo no puede dejar citas no canceladas **futuras** fuera de turno o dentro del periodo bloqueado → 409 (T3, B2). Las citas pasadas no cuentan.
+  - [x] Editar o borrar turnos, rehacer la semana o crear una ausencia o un bloqueo no puede dejar citas no canceladas **futuras** fuera de turno o dentro del periodo bloqueado → 409 (T3, B2). Las citas pasadas no cuentan.
 - [ ] 3.6 Caracterizar el JSON de los listados de citas: `/api/citas/mis-citas`, `/api/admin/citas`, `/api/admin/stats/citas-semanales`, `/api/citas/disponibilidad`, `/api/citas/dias-no-disponibles`.
 - [ ] 3.7 Corregir: un email duplicado por una carrera (o puesto por la administración) da 409 con mensaje, no 500 (`DataIntegrityViolationException` en `ManejadorDeErrores`).
 - [ ] 3.8 Corregir: los 404 llegan con `{"message": "..."}` como el resto de errores.
@@ -92,7 +92,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [ ] 5.2 Corregir: `AuthContext` registra un interceptor de axios nuevo en cada render (peligro 7). Primero un test que lo detecte.
 - [ ] 5.3 Corregir: con un token caducado, el interceptor 401 echa a la clienta a `/login` también desde las páginas públicas (decidir con el usuario qué debe pasar).
 - [ ] 5.4 Tests del flujo de la clienta: ver servicios, reservar (días no disponibles, huecos, confirmar, error 409 con mensaje), ver y cancelar sus citas, editar el perfil.
-- [ ] 5.5 Tests del panel de administración: citas, servicios, trabajadoras, turnos, ausencias y clientas (lo principal de cada una). En clientas, al borrar, mostrar el mensaje del backend ("No se puede borrar una clienta con citas.") en vez de "No se pudo desactivar el cliente." (el texto habla de desactivar, pero se borra).
+- [ ] 5.5 Tests del panel de administración: citas, servicios, trabajadoras, turnos, ausencias y clientas (lo principal de cada una). **Prioridad:** la página de turnos (`AdminGestionTurnos.jsx`) solo escribe los errores en la consola; desde la Fase 3 guardar la semana o borrar un turno puede responder 400/409 con mensaje (por ejemplo, si deja citas fuera de turno) y la administración no ve nada: mostrar el mensaje. En clientas, al borrar, mostrar el mensaje del backend ("No se puede borrar una clienta con citas.") en vez de "No se pudo desactivar el cliente." (el texto habla de desactivar, pero se borra).
 - [ ] 5.6 Refactor: todas las llamadas HTTP en `services/` sobre `apiClient`; formularios con react-hook-form + zod; lógica de las páginas en hooks, separada del markup.
 - [ ] 5.7 `npm run lint` sin problemas (hoy, 24).
 - [ ] 5.8 Cierre de fase (StrykerJS).

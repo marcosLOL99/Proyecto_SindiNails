@@ -2,8 +2,6 @@ package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
 import com.SindiNails.backend.model.*;
-import com.SindiNails.backend.repository.RepositorioCita;
-import com.SindiNails.backend.repository.RepositorioTurno;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.service.JwtService;
 import com.SindiNails.backend.support.DatosDePrueba;
@@ -18,7 +16,6 @@ import org.springframework.http.*;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,8 +44,6 @@ class TurnosAdminCharacterisationTest {
     @Autowired TestRestTemplate http;
     @Autowired DatosDePrueba datos;
     @Autowired RepositorioUsuario usuarios;
-    @Autowired RepositorioTurno turnos;
-    @Autowired RepositorioCita citas;
     @Autowired JwtService jwtService;
 
     private Usuario admin;
@@ -139,15 +134,6 @@ class TurnosAdminCharacterisationTest {
         void characterises_editar_un_turno_que_no_existe() {
             assertThat(resumen(editar(99999999L, sindi, LUNES, "10:00", "14:00"))).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/turnos/N\"}");
         }
-
-        @Test
-        void characterises_editar_un_turno_dejando_fuera_una_cita() {
-            Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
-            Cita cita = citaConfirmada(LUNES.atTime(12, 0));
-            // SUSPICIOUS (T3): la cita confirmada se queda fuera de turno, sin aviso.
-            assertThat(resumen(editar(id, sindi, LUNES, "10:00", "11:00"))).isEqualTo("200 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"11:00:00\"}");
-            assertThat(estadoDe(cita)).isEqualTo("CONFIRMADA fuera de turno");
-        }
     }
 
     // ---------------------------------------------------------------- borrar
@@ -160,15 +146,6 @@ class TurnosAdminCharacterisationTest {
             Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
             assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/turnos/" + id, null))).isEqualTo("204 null");
             assertThat(listar(sindi)).isEqualTo("200 []");
-        }
-
-        @Test
-        void characterises_borrar_un_turno_con_una_cita_dentro() {
-            Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
-            Cita cita = citaConfirmada(LUNES.atTime(12, 0));
-            // SUSPICIOUS (T3): la cita confirmada se queda fuera de turno, sin aviso.
-            assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/turnos/" + id, null))).isEqualTo("204 null");
-            assertThat(estadoDe(cita)).isEqualTo("CONFIRMADA fuera de turno");
         }
 
         @Test
@@ -193,18 +170,6 @@ class TurnosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_lote_que_quita_el_turno_de_una_cita() {
-            datos.turno(sindi, LUNES, "10:00", "14:00");
-            Cita cita = citaConfirmada(LUNES.atTime(12, 0));
-            var r = lote(sindi, """
-                    "0":{"activo":false}
-                    """);
-            // SUSPICIOUS (T3): la cita confirmada se queda fuera de turno, sin aviso.
-            assertThat(resumen(r)).isEqualTo("201 []");
-            assertThat(estadoDe(cita)).isEqualTo("CONFIRMADA fuera de turno");
-        }
-
-        @Test
         void characterises_lote_para_una_trabajadora_que_no_existe() {
             var r = admin(HttpMethod.POST, "/api/admin/turnos/batch", """
                     {"trabajadorId":99999999,"fechaInicioSemana":"2030-01-07","horarios":{}}
@@ -214,22 +179,6 @@ class TurnosAdminCharacterisationTest {
     }
 
     // ---------------------------------------------------------------- utilidades
-
-    private Cita citaConfirmada(LocalDateTime inicio) {
-        Usuario clienta = datos.clienta("Laura");
-        return datos.cita(clienta, sindi, datos.servicio("Semipermanente", 60), inicio, EstadoCita.CONFIRMADA);
-    }
-
-    /** La cita sigue existiendo, con su estado y si cae dentro de algún turno de su trabajadora ese día. */
-    private String estadoDe(Cita cita) {
-        return citas.findById(cita.getId()).map(c -> {
-            boolean dentro = turnos.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(
-                            sindi.getId(), c.getFechaHoraInicio().toLocalDate()).stream()
-                    .anyMatch(t -> !c.getFechaHoraInicio().toLocalTime().isBefore(t.getHoraInicio())
-                            && !c.getFechaHoraFin().toLocalTime().isAfter(t.getHoraFin()));
-            return c.getEstado() + (dentro ? " dentro de un turno" : " fuera de turno");
-        }).orElse("borrada");
-    }
 
     private ResponseEntity<String> crear(Trabajador t, LocalDate fecha, String inicio, String fin) {
         return admin(HttpMethod.POST, "/api/admin/turnos", turnoJson(t, fecha, inicio, fin));
