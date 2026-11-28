@@ -50,7 +50,7 @@ Las reglas de trabajo (skills, tests, commits) están en `CLAUDE.md`. Este archi
 
 Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contárselo al usuario → corregirlo con `tdd` en un paso aparte.
 
-- [ ] 3.1 Caracterizar la gestión de clientas desde la administración (`UsuarioService` y `/api/admin/clientes`: listar, editar, borrar), incluido si editar deja el rol a `null`.
+- [x] 3.1 Caracterizar la gestión de clientas desde la administración (`UsuarioService` y `/api/admin/clientes`: listar, editar, borrar), incluido si editar deja el rol a `null`.
 - [ ] 3.2 Corregir: editar una clienta desde la administración no cambia ni borra su rol.
 - [ ] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
 - [ ] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
