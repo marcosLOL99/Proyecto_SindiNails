@@ -124,6 +124,34 @@ class ReservasCruzadasTest {
         assertThat(resultados).doesNotContain("las dos");
     }
 
+    @Test
+    void dos_ediciones_a_la_vez_del_mismo_turno_no_dejan_una_cita_fuera_de_turno() throws Exception {
+        nuevaAdministradora();
+        servicio = datos.servicio("Semipermanente", 60);
+        LocalDate martes = LUNES.plusDays(1);
+        List<String> resultados = new ArrayList<>();
+        for (int i = 0; i < RONDAS; i++) {
+            Trabajador ana = datos.trabajadora("Ana" + i);
+            Trabajador bea = datos.trabajadora("Bea" + i);
+            datos.turno(ana, LUNES, "10:00", "14:00");
+            Long turnoId = turnos.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(ana.getId(), LUNES).get(0).getId();
+            datos.cita(datos.clienta("Laura"), bea, servicio, martes.atTime(11, 0), EstadoCita.CONFIRMADA);
+
+            aLaVez(
+                    () -> admin(HttpMethod.PUT, "/api/admin/turnos/" + turnoId, turnoJson(bea, martes, "10:00", "14:00")),
+                    () -> admin(HttpMethod.PUT, "/api/admin/turnos/" + turnoId, turnoJson(ana, LUNES, "12:00", "14:00")));
+
+            boolean citaDeBeaCubierta = turnos.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(bea.getId(), martes).stream()
+                    .anyMatch(t -> !t.getHoraInicio().isAfter(java.time.LocalTime.of(11, 0))
+                            && !t.getHoraFin().isBefore(java.time.LocalTime.of(12, 0)));
+            resultados.add(citaDeBeaCubierta ? "cubierta" : "fuera de turno");
+        }
+        // Acaben en el orden que acaben, la edición que pasa el turno a Bea sale bien (o la otra ya lo había
+        // acortado para Ana, o lo hace después). La que lo devuelve a Ana después tiene que ver que ya es de Bea
+        // y rechazarse: si no, la cita de Bea queda fuera de turno.
+        assertThat(resultados).doesNotContain("fuera de turno");
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private Usuario admin;
