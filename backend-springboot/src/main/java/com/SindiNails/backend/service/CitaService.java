@@ -3,6 +3,7 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.*;
 import com.SindiNails.backend.exception.ReglaDeNegocioException;
+import com.SindiNails.backend.exception.PeticionNoValidaException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.*;
 import com.SindiNails.backend.repository.RepositorioCita;
@@ -11,6 +12,7 @@ import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.repository.RepositorioTurno;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,13 +45,14 @@ public class CitaService {
 
     @Transactional
     public CitaDto createCita(CreateCitaDto createCitaDto, Usuario cliente) {
+        Trabajador trabajador = bloquearTrabajadora(createCitaDto.getIdTrabajador());
+        return crearCita(createCitaDto, cliente, trabajador);
+    }
+
+    private CitaDto crearCita(CreateCitaDto createCitaDto, Usuario cliente, Trabajador trabajador) {
         ServicioLocal servicio = repositorioServicios.findById(createCitaDto.getIdServicio())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Servicio no encontrado con id: " + createCitaDto.getIdServicio()));
-
-        Trabajador trabajador = repositorioTrabajador.findById(createCitaDto.getIdTrabajador())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Trabajador no encontrado con id: " + createCitaDto.getIdTrabajador()));
 
         LocalDateTime fechaHoraInicio = createCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
@@ -70,21 +73,29 @@ public class CitaService {
                 .estado(EstadoCita.CONFIRMADA)
                 .build();
 
-        Cita citaGuardada = repositorioCita.save(nuevaCita);
+        Cita citaGuardada;
+        try {
+            citaGuardada = repositorioCita.saveAndFlush(nuevaCita);
+        } catch (DataIntegrityViolationException e) {
+            // La clienta o el servicio se han borrado mientras se reservaba (la trabajadora está bloqueada).
+            throw new ReglaDeNegocioException("No se ha podido guardar la cita: la clienta o el servicio ya no existen.");
+        }
         return convertToDto(citaGuardada);
     }
 
     @Transactional
     public CitaDto createCitaByAdmin(AdminCreateCitaDto createCitaDto) {
+        Trabajador trabajador = bloquearTrabajadora(createCitaDto.getIdTrabajador());
         Usuario cliente = repositorioUsuario.findById(createCitaDto.getIdCliente())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cliente no encontrado con id: " + createCitaDto.getIdCliente()));
 
-        return createCita(createCitaDto, cliente);
+        return crearCita(createCitaDto, cliente, trabajador);
     }
 
     @Transactional
     public CitaDto updateCita(Long citaId, CreateCitaDto updateCitaDto) {
+        Trabajador trabajador = bloquearTrabajadora(updateCitaDto.getIdTrabajador());
         Cita citaExistente = repositorioCita.findById(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada con id: " + citaId));
         if (citaExistente.getEstado() == EstadoCita.CANCELADA) {
@@ -95,16 +106,15 @@ public class CitaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Servicio no encontrado con id: " + updateCitaDto.getIdServicio()));
 
-        Trabajador trabajador = repositorioTrabajador.findById(updateCitaDto.getIdTrabajador())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Trabajador no encontrado con id: " + updateCitaDto.getIdTrabajador()));
-
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
-        // Si la hora de inicio no cambia, es una corrección (servicio, trabajadora) y no una cita nueva en otro
-        // horario: se permite aunque la cita ya haya pasado o la trabajadora ya no tenga turno. El solape sí se comprueba.
-        boolean cambiaLaHora = !fechaHoraInicio.equals(citaExistente.getFechaHoraInicio());
-        if (cambiaLaHora) {
+        // Corregir una cita que ya ha empezado (servicio, trabajadora) sin cambiar su hora se permite aunque la
+        // trabajadora ya no esté activa o no tenga turno. Una cita futura cumple siempre las reglas de horario,
+        // también si mantiene la hora: si no, podría quedar fuera de turno o dentro de una ausencia.
+        // El solape con otras citas se comprueba siempre.
+        boolean correccionDeCitaPasada = fechaHoraInicio.equals(citaExistente.getFechaHoraInicio())
+                && citaExistente.getFechaHoraInicio().isBefore(LocalDateTime.now(clock));
+        if (!correccionDeCitaPasada) {
             validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
         }
 
@@ -122,6 +132,17 @@ public class CitaService {
 
         Cita citaActualizada = repositorioCita.save(citaExistente);
         return convertToDto(citaActualizada);
+    }
+
+    /**
+     * Primera consulta de toda transacción que reserva o mueve una cita: bloquea la fila de la trabajadora hasta el
+     * final, así dos reservas suyas no comprueban el solape a la vez. Tiene que ir antes de cualquier otra lectura:
+     * en MySQL (REPEATABLE READ) la primera lectura normal fija la foto de los datos, y si fuera antes del bloqueo
+     * la transacción que espera no vería la cita que la otra acaba de guardar.
+     */
+    private Trabajador bloquearTrabajadora(Long trabajadorId) {
+        return repositorioTrabajador.findByIdBloqueando(trabajadorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId));
     }
 
     /**
@@ -277,6 +298,9 @@ public class CitaService {
     }
 
     public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
+        if (mes < 1 || mes > 12) {
+            throw new PeticionNoValidaException("El mes debe estar entre 1 y 12.");
+        }
         LocalDate primerDiaDelMes = LocalDate.of(anio, mes, 1);
         LocalDate fechaInicioRango = primerDiaDelMes.with(DayOfWeek.MONDAY);
 

@@ -1,11 +1,14 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.UsuarioDto;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +20,7 @@ import java.util.stream.Collectors;
 public class UsuarioService {
 
     private final RepositorioUsuario repositorioUsuario;
+    private final RepositorioCita repositorioCita;
 
     public List<UsuarioDto> getAllClientes() {
         return repositorioUsuario.findAllByRole(Role.USER).stream()
@@ -26,24 +30,48 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioDto updateUsuario(Long id, UsuarioDto usuarioDto) {
-        Usuario usuario = repositorioUsuario.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
+        Usuario usuario = buscarClienta(id);
+        boolean emailDeOtraCuenta = repositorioUsuario.findByEmail(usuarioDto.getEmail())
+                .filter(otra -> !otra.getId().equals(id))
+                .isPresent();
+        if (emailDeOtraCuenta) {
+            throw new ReglaDeNegocioException("El email ya está en uso.");
+        }
 
         usuario.setNombre(usuarioDto.getNombre());
         usuario.setApellidos(usuarioDto.getApellidos());
         usuario.setEmail(usuarioDto.getEmail());
         usuario.setTelefono(usuarioDto.getTelefono());
-        usuario.setRole(usuarioDto.getRole());
 
-        Usuario usuarioActualizado = repositorioUsuario.save(usuario);
+        Usuario usuarioActualizado;
+        try {
+            usuarioActualizado = repositorioUsuario.saveAndFlush(usuario);
+        } catch (DataIntegrityViolationException e) {
+            // Otra cuenta ha tomado ese email entre la comprobación y el guardado.
+            throw new ReglaDeNegocioException("El email ya está en uso.");
+        }
         return convertToDto(usuarioActualizado);
     }
 
+    /** Sus citas (también las canceladas o pasadas) son el historial del salón: una clienta con citas no se borra. */
     public void deleteUsuario(Long id) {
-        if (!repositorioUsuario.existsById(id)) {
-            throw new ResourceNotFoundException("Usuario no encontrado con id: " + id);
+        Usuario clienta = buscarClienta(id);
+        if (repositorioCita.existsByClienteId(id)) {
+            throw new ReglaDeNegocioException("No se puede borrar una clienta con citas.");
         }
-        repositorioUsuario.deleteById(id);
+        try {
+            repositorioUsuario.delete(clienta);
+        } catch (DataIntegrityViolationException e) {
+            // Se le ha creado una cita entre la comprobación y el borrado.
+            throw new ReglaDeNegocioException("No se puede borrar una clienta con citas.");
+        }
+    }
+
+    /** Solo clientas: una administradora no se edita ni se borra desde la gestión de clientas (404, como si no existiera). */
+    private Usuario buscarClienta(Long id) {
+        return repositorioUsuario.findById(id)
+                .filter(usuario -> usuario.getRole() == Role.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("Clienta no encontrada con id: " + id));
     }
 
     private UsuarioDto convertToDto(Usuario usuario) {

@@ -2,10 +2,13 @@ package com.SindiNails.backend.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -23,6 +26,21 @@ public class ManejadorDeErrores {
         return conMensaje(HttpStatus.CONFLICT, e);
     }
 
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> noEncontrado(ResourceNotFoundException e) {
+        return conMensaje(HttpStatus.NOT_FOUND, e);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, String>> faltaParametro(MissingServletRequestParameterException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "Falta el parámetro " + e.getParameterName() + ".");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> parametroMalEscrito(MethodArgumentTypeMismatchException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "El parámetro " + e.getName() + " no tiene un formato válido.");
+    }
+
     @ExceptionHandler(PeticionNoValidaException.class)
     public ResponseEntity<Map<String, String>> peticionNoValida(PeticionNoValidaException e) {
         return conMensaje(HttpStatus.BAD_REQUEST, e);
@@ -36,6 +54,12 @@ public class ManejadorDeErrores {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(" "));
         return conMensaje(HttpStatus.BAD_REQUEST, mensaje);
+    }
+
+    /** Cuerpo que no se puede leer: JSON mal formado, una fecha mal escrita o un valor que no existe (por ejemplo, un tipo). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> cuerpoIlegible(HttpMessageNotReadableException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "La petición no tiene un formato válido.");
     }
 
     private static ResponseEntity<Map<String, String>> conMensaje(HttpStatus estado, RuntimeException e) {

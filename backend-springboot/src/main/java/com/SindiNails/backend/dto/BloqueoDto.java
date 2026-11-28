@@ -20,7 +20,7 @@ public class BloqueoDto {
     @NotBlank(message = "El motivo no puede estar vacío.")
     private String motivo;
 
-    @NotNull
+    @NotNull(message = "El tipo es obligatorio.")
     private TipoBloqueo tipo;
 
     private Long trabajadorId;

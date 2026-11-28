@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Los errores que el servicio explica con un mensaje llegan al cliente con su estado HTTP
  * y el cuerpo {"message": "..."}, que el frontend muestra tal cual:
- * una regla del salón incumplida → 409; datos de la petición no válidos → 400.
+ * una regla del salón incumplida → 409; datos de la petición no válidos → 400; algo que no existe → 404.
  *
  * Servidor real (RANDOM_PORT): el estado que recibe el cliente depende también de la redirección a /error.
  */
@@ -123,5 +123,82 @@ class ErroresApiTest {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(mensaje(r)).isEqualTo("La duración no puede ser nula. El nombre no puede estar vacío. "
                 + "El precio no puede ser nulo. El ID del tipo de servicio no puede ser nulo.");
+    }
+
+    // ---------------------------------------------------------------- 404 y parámetros (Fase 3, paso 3.8)
+
+    @Test
+    void lo_que_no_existe_responde_404_con_el_mensaje() throws Exception {
+        Usuario admin = usuario(Role.ADMIN);
+
+        var clienta = peticion(HttpMethod.DELETE, "/api/admin/clientes/99999999", admin, null);
+        var trabajadora = peticion(HttpMethod.GET,
+                "/api/citas/disponibilidad?trabajadorId=99999999&servicioId=1&fecha=2030-02-04", null, null);
+
+        assertThat(clienta.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(mensaje(clienta)).isEqualTo("Clienta no encontrada con id: 99999999");
+        assertThat(trabajadora.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(mensaje(trabajadora)).isEqualTo("Trabajador no encontrado con id: 99999999");
+    }
+
+    @Test
+    void cancelar_la_cita_de_otra_clienta_da_el_mismo_404_que_una_cita_que_no_existe() throws Exception {
+        Usuario laura = usuario(Role.USER);
+        Usuario marta = usuario(Role.USER);
+        var cita = datos.cita(marta, datos.trabajadora("Sindi"), datos.servicio("Semipermanente", 60),
+                LocalDateTime.of(2030, 2, 4, 10, 0), EstadoCita.CONFIRMADA);
+
+        var deOtra = peticion(HttpMethod.PATCH, "/api/citas/" + cita.getId() + "/cancelar", laura, null);
+        var inexistente = peticion(HttpMethod.PATCH, "/api/citas/99999999/cancelar", laura, null);
+
+        assertThat(deOtra.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(mensaje(deOtra)).isEqualTo("Cita no encontrada con id: " + cita.getId());
+        assertThat(inexistente.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(mensaje(inexistente)).isEqualTo("Cita no encontrada con id: 99999999");
+    }
+
+    @Test
+    void un_parametro_que_falta_responde_400_diciendo_cual() throws Exception {
+        var r = peticion(HttpMethod.GET, "/api/citas/disponibilidad?trabajadorId=1&fecha=2030-02-04", null, null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("Falta el parámetro servicioId.");
+    }
+
+    @Test
+    void un_parametro_mal_escrito_responde_400_diciendo_cual() throws Exception {
+        var fecha = peticion(HttpMethod.GET,
+                "/api/citas/disponibilidad?trabajadorId=1&servicioId=1&fecha=04-02-2030", null, null);
+        var numero = peticion(HttpMethod.GET,
+                "/api/citas/dias-no-disponibles?trabajadorId=uno&servicioId=1&anio=2030&mes=2", null, null);
+
+        assertThat(fecha.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(fecha)).isEqualTo("El parámetro fecha no tiene un formato válido.");
+        assertThat(numero.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(numero)).isEqualTo("El parámetro trabajadorId no tiene un formato válido.");
+    }
+
+    @Test
+    void un_mes_que_no_existe_responde_400_con_el_mensaje() throws Exception {
+        Usuario nadie = null;
+        for (int mes : new int[]{0, 13}) {
+            var r = peticion(HttpMethod.GET,
+                    "/api/citas/dias-no-disponibles?trabajadorId=1&servicioId=1&anio=2030&mes=" + mes, nadie, null);
+
+            assertThat(r.getStatusCode()).as("mes " + mes).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("El mes debe estar entre 1 y 12.");
+        }
+    }
+
+    @Test
+    void enero_y_diciembre_son_meses_validos() {
+        var sindi = datos.trabajadora("Sindi");
+        var servicio = datos.servicio("Semipermanente", 60);
+        for (int mes : new int[]{1, 12}) {
+            var r = peticion(HttpMethod.GET, "/api/citas/dias-no-disponibles?trabajadorId=" + sindi.getId()
+                    + "&servicioId=" + servicio.getId() + "&anio=2030&mes=" + mes, null, null);
+
+            assertThat(r.getStatusCode()).as("mes " + mes).isEqualTo(HttpStatus.OK);
+        }
     }
 }

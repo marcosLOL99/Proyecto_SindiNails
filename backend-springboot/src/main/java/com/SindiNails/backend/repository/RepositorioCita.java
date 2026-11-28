@@ -15,7 +15,12 @@ public interface RepositorioCita extends JpaRepository<Cita, Long> {
     @Query("SELECT c FROM Cita c WHERE c.trabajador.id = :trabajadorId AND c.id != :citaId AND c.estado != 'CANCELADA' AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
     List<Cita> findCitasSolapadasExcluyendoCita(@Param("trabajadorId") Long trabajadorId, @Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin, @Param("citaId") Long citaId);
 
+    @Query("SELECT c FROM Cita c WHERE c.estado != 'CANCELADA' AND c.fechaHoraInicio < :fechaHoraFin AND c.fechaHoraFin > :fechaHoraInicio")
+    List<Cita> findCitasSolapadasDeTodas(@Param("fechaHoraInicio") LocalDateTime fechaHoraInicio, @Param("fechaHoraFin") LocalDateTime fechaHoraFin);
+
     List<Cita> findByClienteIdOrderByFechaHoraInicioDesc(Long clienteId);
+
+    boolean existsByClienteId(Long clienteId);
 
     List<Cita> findAllByOrderByFechaHoraInicioDesc();
 

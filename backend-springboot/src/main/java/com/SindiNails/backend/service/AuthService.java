@@ -10,6 +10,7 @@ import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -37,7 +38,12 @@ public class AuthService {
                 .telefono(request.getTelefono())
                 .role(Role.USER)
                 .build();
-        repositorioUsuario.save(user);
+        try {
+            repositorioUsuario.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            // Otro registro con el mismo email ha ganado la carrera entre la comprobación y el guardado.
+            throw new ReglaDeNegocioException("El email ya está en uso.");
+        }
         var jwtToken = jwtService.generateToken(user);
         return AuthResponseDto.builder().token(jwtToken).build();
     }

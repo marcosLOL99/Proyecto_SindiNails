@@ -9,9 +9,9 @@ import java.util.List;
 
 public interface RopositorioPeriodoNoDisp extends JpaRepository<PeriodoNoDisponible, Long> {
 
-    List<PeriodoNoDisponible> findByTrabajadorId(Long trabajadorId);
+    List<PeriodoNoDisponible> findByTrabajadorIdOrderByFechaHoraInicioAsc(Long trabajadorId);
 
-    List<PeriodoNoDisponible> findByTipo(TipoBloqueo tipo);
+    List<PeriodoNoDisponible> findByTipoOrderByFechaHoraInicioAsc(TipoBloqueo tipo);
 
     List<PeriodoNoDisponible> findByTipoAndFechaHoraInicioBeforeAndFechaHoraFinAfter(TipoBloqueo tipo, LocalDateTime fin, LocalDateTime inicio);
 
