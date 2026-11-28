@@ -56,7 +56,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
   - [x] C2: `/api/admin/clientes/{id}` solo trabaja con clientas: editar o borrar una administradora (incluida una misma) responde 404.
   - [x] C3: editar una clienta exige lo mismo que el registro: todos los campos obligatorios y un email válido.
   - [x] C4: borrar una clienta con citas responde 409 con mensaje y no borra nada (sus citas son el historial del salón).
-- [ ] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
+- [x] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
 - [ ] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
 - [ ] 3.5 Corregir los bugs que salgan en 3.3 y 3.4 (un paso `tdd` por bug, después de decidirlo con el usuario).
 - [ ] 3.6 Caracterizar el JSON de los listados de citas: `/api/citas/mis-citas`, `/api/admin/citas`, `/api/admin/stats/citas-semanales`, `/api/citas/disponibilidad`, `/api/citas/dias-no-disponibles`.
