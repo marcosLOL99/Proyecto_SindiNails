@@ -33,7 +33,6 @@ public class UsuarioService {
         usuario.setApellidos(usuarioDto.getApellidos());
         usuario.setEmail(usuarioDto.getEmail());
         usuario.setTelefono(usuarioDto.getTelefono());
-        usuario.setRole(usuarioDto.getRole());
 
         Usuario usuarioActualizado = repositorioUsuario.save(usuario);
         return convertToDto(usuarioActualizado);

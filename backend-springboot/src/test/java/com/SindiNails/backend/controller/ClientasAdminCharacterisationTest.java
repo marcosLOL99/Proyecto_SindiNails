@@ -93,52 +93,14 @@ class ClientasAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_editar_sin_enviar_el_rol() throws Exception {
-            // Así edita ClienteForm.jsx: no envía el rol.
-            // SUSPICIOUS (C1): el rol que no llega se guarda como null.
-            var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
-                    {"nombre":"Ana","apellidos":"Pérez","email":"%s","telefono":"611111111"}
-                    """.formatted(ana.getEmail()));
-            assertThat(resumen(r)).isEqualTo("200 {\"id\":N,\"nombre\":\"Ana\",\"apellidos\":\"Pérez\",\"email\":\"ana-XXXX@test.com\",\"telefono\":\"611111111\",\"role\":null}");
-            assertThat(guardada(ana)).isEqualTo("Ana|Pérez|ana-XXXX@test.com|611111111|null");
-        }
-
-        @Test
-        void characterises_clienta_editada_sin_rol_en_el_listado_y_al_entrar() throws Exception {
-            peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
-                    {"nombre":"Ana","apellidos":"Pérez","email":"%s","telefono":"611111111"}
-                    """.formatted(ana.getEmail()));
-
-            // SUSPICIOUS (C1): con el rol a null la clienta desaparece del listado y ya no puede entrar
-            // (500: Usuario.getAuthorities() hace role.name() sobre null).
-            var listado = peticion(HttpMethod.GET, "/api/admin/clientes", null);
-            assertThat(buscar(listado, ana.getId())).isEqualTo("ausente");
-
-            var login = sinToken(HttpMethod.POST, "/api/auth/login", """
-                    {"email":"%s","password":"%s"}
-                    """.formatted(ana.getEmail(), PASSWORD));
-            assertThat(resumen(login)).isEqualTo("500 {\"timestamp\":T,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/auth/login\"}");
-        }
-
-        @Test
-        void characterises_editar_poniendo_rol_admin() throws Exception {
-            var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
-                    {"nombre":"Ana","apellidos":"Pérez","email":"%s","telefono":"600000000","role":"ADMIN"}
-                    """.formatted(ana.getEmail()));
-            // SUSPICIOUS (C2): editar una clienta puede convertirla en administradora.
-            assertThat(r.getStatusCode().value()).isEqualTo(200);
-            assertThat(guardada(ana)).isEqualTo("Ana|Pérez|ana-XXXX@test.com|600000000|ADMIN");
-        }
-
-        @Test
         void characterises_editar_a_una_administradora_por_la_ruta_de_clientas() throws Exception {
             Usuario otraAdmin = usuario("Jefa", Role.ADMIN);
             var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + otraAdmin.getId(), """
                     {"nombre":"Cambiada","apellidos":"Salón","email":"%s","telefono":"600000000","role":"USER"}
                     """.formatted(otraAdmin.getEmail()));
-            // SUSPICIOUS (C2): la ruta de clientas también edita (y degrada) a una administradora.
+            // SUSPICIOUS (C2): la ruta de clientas también edita a una administradora.
             assertThat(r.getStatusCode().value()).isEqualTo(200);
-            assertThat(guardada(otraAdmin)).isEqualTo("Cambiada|Salón|jefa-XXXX@test.com|600000000|USER");
+            assertThat(guardada(otraAdmin)).isEqualTo("Cambiada|Salón|jefa-XXXX@test.com|600000000|ADMIN");
         }
 
         @Test
