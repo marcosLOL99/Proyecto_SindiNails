@@ -213,6 +213,9 @@ public class TurnoService {
         if (diaDeLaSemana < 0 || diaDeLaSemana > 6) {
             throw new PeticionNoValidaException("Los días de la semana van del 0 (lunes) al 6 (domingo).");
         }
+        if (dia == null) {
+            throw new PeticionNoValidaException("Cada día de los horarios necesita sus datos.");
+        }
         if (!dia.isActivo()) {
             return;
         }

@@ -242,6 +242,19 @@ class TurnosAdminApiTest {
     }
 
     @Test
+    void un_lote_con_un_dia_vacio_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+
+        var r = lote(sindi, """
+                "0":null
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("Cada día de los horarios necesita sus datos.");
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
+    @Test
     void un_lote_con_el_domingo_crea_su_turno() throws Exception {
         var r = lote(sindi, """
                 "6":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
