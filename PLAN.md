@@ -71,6 +71,13 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.9 Corregir: dos reservas simultáneas del mismo hueco no quedan confirmadas las dos (test con dos reservas en paralelo; bloqueo por trabajadora o restricción en la base de datos).
 - [x] 3.9b Corregir: editar, borrar o rehacer turnos y crear una ausencia toman el mismo bloqueo que las reservas (una reserva cruzada con ellos no se cuela). Los bloqueos globales quedan para la Fase 4.
 - [x] 3.10 Corregir: `toString()`/`hashCode()` de las entidades no entran en recursión (sustituir `@Data` de Lombok en las entidades JPA).
+- [ ] 3.11a Corregir lo encontrado al cerrar (revisión de código y PIT), decidido con el usuario:
+  - [x] Tests que faltaban según PIT: rehacer la semana con una cita en domingo, mover el horario a otro día, borrar un turno con otro contiguo que cubre la cita, meses 1 y 12 válidos.
+  - [ ] Un lote con un día vacío (`null`) → 400 (CR7).
+  - [ ] Crear un turno toma el bloqueo de la trabajadora: dos turnos solapados creados a la vez no se guardan los dos (CR1).
+  - [ ] Editar o borrar un turno vuelve a leerlo después de bloquear: si otra edición lo ha cambiado de trabajadora o de día mientras esperaba, comprueba las citas correctas (CR2).
+  - [ ] Editar una cita futura cambiando la trabajadora o el servicio comprueba turno y ausencias; la excepción queda solo para citas pasadas (CR5).
+  - [ ] Borrar un servicio con citas, o una clienta en plena carrera, → 409 en vez de 500 (CR6).
 - [ ] 3.11 Cierre de fase.
 
 ## Fase 4 — Refactor del backend y base de datos con Flyway

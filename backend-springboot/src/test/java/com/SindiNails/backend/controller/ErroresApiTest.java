@@ -189,4 +189,16 @@ class ErroresApiTest {
             assertThat(mensaje(r)).isEqualTo("El mes debe estar entre 1 y 12.");
         }
     }
+
+    @Test
+    void enero_y_diciembre_son_meses_validos() {
+        var sindi = datos.trabajadora("Sindi");
+        var servicio = datos.servicio("Semipermanente", 60);
+        for (int mes : new int[]{1, 12}) {
+            var r = peticion(HttpMethod.GET, "/api/citas/dias-no-disponibles?trabajadorId=" + sindi.getId()
+                    + "&servicioId=" + servicio.getId() + "&anio=2030&mes=" + mes, null, null);
+
+            assertThat(r.getStatusCode()).as("mes " + mes).isEqualTo(HttpStatus.OK);
+        }
+    }
 }

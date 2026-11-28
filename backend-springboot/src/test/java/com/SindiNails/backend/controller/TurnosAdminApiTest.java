@@ -319,9 +319,9 @@ class TurnosAdminApiTest {
     }
 
     @Test
-    void borrar_un_turno_con_otro_que_cubre_la_cita_se_permite() {
-        datos.turno(sindi, LUNES, "09:00", "15:00");
-        Long id = idDeSinComprobar(crear(sindi, LUNES.plusDays(1), "10:00", "14:00"));
+    void borrar_un_turno_cuando_la_cita_cae_en_otro_turno_contiguo_del_mismo_dia_se_permite() {
+        Long id = idDeSinComprobar(crear(sindi, LUNES, "09:00", "12:00"));
+        datos.turno(sindi, LUNES, "12:00", "15:00");
         cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
 
         assertThat(admin(HttpMethod.DELETE, "/api/admin/turnos/" + id, null).getStatusCode())
@@ -356,6 +356,33 @@ class TurnosAdminApiTest {
 
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(mensaje(r)).isEqualTo(CITAS_FUERA);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void rehacer_la_semana_dejando_fuera_una_cita_del_domingo_responde_409() throws Exception {
+        LocalDate domingo = LUNES.plusDays(6);
+        datos.turno(sindi, domingo, "10:00", "14:00");
+        cita(sindi, domingo.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-13 10:00-14:00");
+    }
+
+    @Test
+    void rehacer_la_semana_pasando_el_horario_de_la_cita_a_otro_dia_responde_409() throws Exception {
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+        cita(sindi, LUNES.atTime(12, 0), EstadoCita.CONFIRMADA);
+
+        var r = lote(sindi, """
+                "1":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
     }
 
