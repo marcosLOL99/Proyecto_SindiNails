@@ -8,6 +8,8 @@ import com.SindiNails.backend.model.ServicioLocal;
 import com.SindiNails.backend.model.TipoServicio;
 import com.SindiNails.backend.repository.RepositorioServicios;
 import com.SindiNails.backend.repository.RepositorioTipoServicio;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +77,11 @@ public class ServicioService {
         if (!repositorioServicios.existsById(id)) {
             throw new ResourceNotFoundException("Servicio no encontrado con id: " + id);
         }
-        repositorioServicios.deleteById(id);
+        try {
+            repositorioServicios.deleteById(id);
+        } catch (DataIntegrityViolationException e) {
+            // Sus citas (también las pasadas) son el historial del salón: la clave foránea impide borrarlo.
+            throw new ReglaDeNegocioException("No se puede borrar un servicio con citas.");
+        }
     }
 }

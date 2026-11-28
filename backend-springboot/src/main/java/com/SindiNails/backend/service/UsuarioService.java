@@ -59,7 +59,12 @@ public class UsuarioService {
         if (repositorioCita.existsByClienteId(id)) {
             throw new ReglaDeNegocioException("No se puede borrar una clienta con citas.");
         }
-        repositorioUsuario.delete(clienta);
+        try {
+            repositorioUsuario.delete(clienta);
+        } catch (DataIntegrityViolationException e) {
+            // Se le ha creado una cita entre la comprobación y el borrado.
+            throw new ReglaDeNegocioException("No se puede borrar una clienta con citas.");
+        }
     }
 
     /** Solo clientas: una administradora no se edita ni se borra desde la gestión de clientas (404, como si no existiera). */

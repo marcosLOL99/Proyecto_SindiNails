@@ -19,6 +19,7 @@ Fijadas en la Fase 3 por `TurnosAdminApiTest` y `BloqueosAdminApiTest`:
 - **Semana en lote** (`/turnos/batch`): días del 0 (lunes) al 6 (domingo); horarios obligatorios; un día activo necesita sus horas; el descanso cae estrictamente dentro del horario (400). Sustituye solo los turnos de esa semana, y nada se borra si la petición no es válida.
 - **Citas protegidas**: editar o borrar un turno, o rehacer la semana, no puede dejar una cita sin cancelar y todavía por empezar fuera de turno; crear una ausencia no puede pisar las de su trabajadora, ni un bloqueo global las de ninguna (409 con mensaje). Las citas pasadas no cuentan.
 - **Ausencias y bloqueos**: acaban después de empezar (400); las ausencias de una trabajadora que no existe → 404.
+- **Lo que tiene citas no se borra** (una clienta o un servicio): 409 con mensaje, también si la cita se crea justo mientras se borra; y una cita cuya clienta o servicio se acaba de borrar responde 409, no 500. Fijado en `BorradosConCitasTest`.
 - Un cuerpo ilegible (JSON mal formado, fecha mal escrita, tipo desconocido) → 400 "La petición no tiene un formato válido." (`ManejadorDeErrores`).
 
 En los tests HTTP la base de datos es compartida entre clases: un bloqueo global choca con las citas que otros tests dejan, así que los tests que crean bloqueos globales válidos usan días propios (2031).

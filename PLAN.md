@@ -77,7 +77,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
   - [x] Crear un turno toma el bloqueo de la trabajadora: dos turnos solapados creados a la vez no se guardan los dos (CR1).
   - [x] Editar o borrar un turno vuelve a leerlo después de bloquear: si otra edición lo ha cambiado de trabajadora o de día mientras esperaba, comprueba las citas correctas (CR2).
   - [x] Editar una cita futura cambiando la trabajadora o el servicio comprueba turno y ausencias; la excepción queda solo para citas pasadas (CR5).
-  - [ ] Borrar un servicio con citas, o una clienta en plena carrera, → 409 en vez de 500 (CR6).
+  - [x] Borrar un servicio con citas, o una clienta en plena carrera, → 409 en vez de 500 (CR6).
 - [ ] 3.11 Cierre de fase.
 
 ## Fase 4 — Refactor del backend y base de datos con Flyway

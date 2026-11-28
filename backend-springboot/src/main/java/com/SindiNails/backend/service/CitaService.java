@@ -12,6 +12,7 @@ import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.repository.RepositorioTurno;
+import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -72,7 +73,13 @@ public class CitaService {
                 .estado(EstadoCita.CONFIRMADA)
                 .build();
 
-        Cita citaGuardada = repositorioCita.save(nuevaCita);
+        Cita citaGuardada;
+        try {
+            citaGuardada = repositorioCita.saveAndFlush(nuevaCita);
+        } catch (DataIntegrityViolationException e) {
+            // La clienta o el servicio se han borrado mientras se reservaba (la trabajadora está bloqueada).
+            throw new ReglaDeNegocioException("No se ha podido guardar la cita: la clienta o el servicio ya no existen.");
+        }
         return convertToDto(citaGuardada);
     }
 
