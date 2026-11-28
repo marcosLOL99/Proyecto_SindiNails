@@ -17,6 +17,8 @@ public interface RepositorioCita extends JpaRepository<Cita, Long> {
 
     List<Cita> findByClienteIdOrderByFechaHoraInicioDesc(Long clienteId);
 
+    boolean existsByClienteId(Long clienteId);
+
     List<Cita> findAllByOrderByFechaHoraInicioDesc();
 
     @Query("SELECT new map(function('DATE', c.fechaHoraInicio) as fecha, count(c.id) as cantidad) " +

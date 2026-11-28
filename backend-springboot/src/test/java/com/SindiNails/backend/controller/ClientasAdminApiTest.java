@@ -1,10 +1,13 @@
 package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
+import com.SindiNails.backend.model.EstadoCita;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.service.JwtService;
+import com.SindiNails.backend.support.DatosDePrueba;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +19,7 @@ import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -27,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, DatosDePrueba.class})
 class ClientasAdminApiTest {
 
     private static final String PASSWORD = "secreta1";
@@ -36,6 +40,8 @@ class ClientasAdminApiTest {
     @Autowired RepositorioUsuario usuarios;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
+    @Autowired DatosDePrueba datos;
+    @Autowired RepositorioCita citas;
     @Autowired ObjectMapper json;
 
     private Usuario admin;
@@ -151,6 +157,44 @@ class ClientasAdminApiTest {
         assertThat(guardada.getApellidos()).isEqualTo("Ruiz");
         assertThat(guardada.getEmail()).isEqualTo(nuevoEmail);
         assertThat(guardada.getTelefono()).isEqualTo("611111111");
+    }
+
+    // ---------------------------------------------------------------- C4: clientas con citas
+
+    @Test
+    void borrar_una_clienta_con_citas_responde_409_y_no_borra_nada() throws Exception {
+        var cita = datos.cita(ana, datos.trabajadora("Sindi"), datos.servicio("Semipermanente", 60),
+                LocalDateTime.of(2020, 3, 2, 10, 0), EstadoCita.CONFIRMADA);
+
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(r)).isEqualTo("No se puede borrar una clienta con citas.");
+        assertThat(usuarios.existsById(ana.getId())).isTrue();
+        assertThat(citas.existsById(cita.getId())).isTrue();
+    }
+
+    @Test
+    void borrar_una_clienta_con_solo_citas_canceladas_tampoco_se_permite() throws Exception {
+        datos.cita(ana, datos.trabajadora("Sindi"), datos.servicio("Semipermanente", 60),
+                LocalDateTime.of(2030, 3, 2, 10, 0), EstadoCita.CANCELADA);
+
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(usuarios.existsById(ana.getId())).isTrue();
+    }
+
+    @Test
+    void las_citas_de_otra_clienta_no_impiden_borrar() {
+        Usuario marta = usuario("Marta", Role.USER);
+        datos.cita(marta, datos.trabajadora("Sindi"), datos.servicio("Semipermanente", 60),
+                LocalDateTime.of(2030, 3, 2, 10, 0), EstadoCita.CONFIRMADA);
+
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(usuarios.existsById(ana.getId())).isFalse();
     }
 
     // ---------------------------------------------------------------- utilidades

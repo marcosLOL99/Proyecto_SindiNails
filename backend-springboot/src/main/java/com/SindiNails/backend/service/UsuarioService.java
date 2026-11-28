@@ -1,9 +1,11 @@
 package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.UsuarioDto;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
+import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 public class UsuarioService {
 
     private final RepositorioUsuario repositorioUsuario;
+    private final RepositorioCita repositorioCita;
 
     public List<UsuarioDto> getAllClientes() {
         return repositorioUsuario.findAllByRole(Role.USER).stream()
@@ -37,8 +40,13 @@ public class UsuarioService {
         return convertToDto(usuarioActualizado);
     }
 
+    /** Sus citas (también las canceladas o pasadas) son el historial del salón: una clienta con citas no se borra. */
     public void deleteUsuario(Long id) {
-        repositorioUsuario.delete(buscarClienta(id));
+        Usuario clienta = buscarClienta(id);
+        if (repositorioCita.existsByClienteId(id)) {
+            throw new ReglaDeNegocioException("No se puede borrar una clienta con citas.");
+        }
+        repositorioUsuario.delete(clienta);
     }
 
     /** Solo clientas: una administradora no se edita ni se borra desde la gestión de clientas (404, como si no existiera). */

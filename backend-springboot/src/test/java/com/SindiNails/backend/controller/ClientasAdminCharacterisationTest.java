@@ -1,12 +1,10 @@
 package com.SindiNails.backend.controller;
 
 import com.SindiNails.backend.TestcontainersConfiguration;
-import com.SindiNails.backend.model.EstadoCita;
 import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.service.JwtService;
-import com.SindiNails.backend.support.DatosDePrueba;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +18,6 @@ import org.springframework.http.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.stream.StreamSupport;
 
@@ -41,14 +38,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import({TestcontainersConfiguration.class, DatosDePrueba.class})
+@Import(TestcontainersConfiguration.class)
 class ClientasAdminCharacterisationTest {
 
     private static final String PASSWORD = "secreta1";
-    private static final LocalDateTime FUTURO = LocalDateTime.of(2030, 1, 10, 10, 0);
 
     @Autowired TestRestTemplate http;
-    @Autowired DatosDePrueba datos;
     @Autowired RepositorioUsuario usuarios;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
@@ -119,18 +114,6 @@ class ClientasAdminCharacterisationTest {
     class Borrar {
 
         @Test
-        void characterises_borrar_una_clienta_con_citas() throws Exception {
-            var servicio = datos.servicio("Semipermanente", 60);
-            var trabajadora = datos.trabajadora("Sindi");
-            datos.cita(ana, trabajadora, servicio, FUTURO, EstadoCita.CONFIRMADA);
-
-            var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
-            // SUSPICIOUS (C4): la clave foránea de sus citas impide borrarla y llega un 500 sin mensaje.
-            assertThat(resumen(r)).isEqualTo("500 {\"timestamp\":T,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/clientes/N\"}");
-            assertThat(usuarios.existsById(ana.getId())).isEqualTo(true);
-        }
-
-        @Test
         void characterises_borrar_una_clienta_que_no_existe() throws Exception {
             var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/99999999", null);
             assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/clientes/N\"}");
@@ -160,12 +143,6 @@ class ClientasAdminCharacterisationTest {
         HttpHeaders h = new HttpHeaders();
         h.setContentType(MediaType.APPLICATION_JSON);
         h.setBearerAuth(jwtService.generateToken(admin));
-        return http.exchange(url, metodo, new HttpEntity<>(cuerpo, h), String.class);
-    }
-
-    private ResponseEntity<String> sinToken(HttpMethod metodo, String url, String cuerpo) {
-        HttpHeaders h = new HttpHeaders();
-        h.setContentType(MediaType.APPLICATION_JSON);
         return http.exchange(url, metodo, new HttpEntity<>(cuerpo, h), String.class);
     }
 

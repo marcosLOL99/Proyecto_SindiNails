@@ -64,7 +64,7 @@ Todo junto: `docker compose up --build` → http://localhost
 7b. **Reservas simultáneas:** `createCita` y `updateCita` comprueban el solape y después guardan, sin bloqueo ni restricción en la base de datos. Dos reservas del mismo hueco a la vez quedan confirmadas las dos. Pendiente: test con dos reservas en paralelo y corregirlo con `tdd` (bloqueo por trabajadora o restricción).
 8. **Lint:** `npm run lint` tiene 24 problemas que ya existían; se irán corrigiendo durante el refactor. El código nuevo o modificado debe pasar el lint.
 10. **Pendientes encontrados al cerrar la Fase 2** (ya existían; caracterizar y corregir con `tdd`):
-    - Editar una clienta desde la administración (`UsuarioService.updateUsuario`) copia `role` del cuerpo, pero `ClienteForm.jsx` no lo envía: probablemente deja el rol a `null`.
+    - ~~Editar una clienta dejaba el rol a `null`~~: **resuelto** en la Fase 3. `/api/admin/clientes/{id}` solo trabaja con clientas (una administradora → 404), nunca cambia el rol, valida como el registro y no borra una clienta con citas (409). Fijado en `ClientasAdminApiTest`.
     - Dos registros simultáneos con el mismo email (o la administración poniendo un email ya usado) dan 500: la restricción `unique` lanza `DataIntegrityViolationException`, que `ManejadorDeErrores` no traduce.
     - Los 404 llegan con el cuerpo por defecto de Spring, sin `message`.
     - `@Data` de Lombok en entidades que se referencian entre sí (`Trabajador` ↔ `Turno`/`PeriodoNoDisponible`): `toString()`/`hashCode()` recursivos → `StackOverflowError` si se llaman con las colecciones cargadas.
