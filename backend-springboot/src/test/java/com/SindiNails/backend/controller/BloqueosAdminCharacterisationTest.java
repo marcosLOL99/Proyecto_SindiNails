@@ -103,18 +103,6 @@ class BloqueosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_crear_con_fin_antes_del_inicio() {
-            // SUSPICIOUS (B1): se acepta un periodo que acaba antes de empezar.
-            assertThat(resumen(ausencia(sindi, DIA.withHour(12), DIA.withHour(10)))).isEqualTo("201 {\"id\":N,\"fechaHoraInicio\":\"2030-01-07T12:00:00\",\"fechaHoraFin\":\"2030-01-07T10:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"TRABAJADOR\",\"trabajadorId\":N}");
-        }
-
-        @Test
-        void characterises_crear_con_fin_igual_al_inicio() {
-            // SUSPICIOUS (B1): se acepta un periodo de duración cero.
-            assertThat(resumen(global(DIA.withHour(10), DIA.withHour(10)))).isEqualTo("201 {\"id\":N,\"fechaHoraInicio\":\"2030-01-07T10:00:00\",\"fechaHoraFin\":\"2030-01-07T10:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"GLOBAL\",\"trabajadorId\":null}");
-        }
-
-        @Test
         void characterises_crear_en_el_pasado() {
             assertThat(resumen(ausencia(sindi, LocalDateTime.of(2020, 1, 6, 10, 0), LocalDateTime.of(2020, 1, 6, 12, 0))))
                     .isEqualTo("201 {\"id\":N,\"fechaHoraInicio\":\"2020-01-06T10:00:00\",\"fechaHoraFin\":\"2020-01-06T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"TRABAJADOR\",\"trabajadorId\":N}");

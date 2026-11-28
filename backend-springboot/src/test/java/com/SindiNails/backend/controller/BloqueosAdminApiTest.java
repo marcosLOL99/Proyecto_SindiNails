@@ -94,6 +94,29 @@ class BloqueosAdminApiTest {
         assertThat(r.getBody()).isEqualTo("[]");
     }
 
+    // ---------------------------------------------------------------- un periodo acaba después de empezar
+
+    @Test
+    void una_ausencia_o_un_bloqueo_que_acaba_antes_de_empezar_o_a_la_vez_responde_400_y_no_se_guarda() throws Exception {
+        for (var r : List.of(
+                ausencia(sindi, DIA.withHour(12), DIA.withHour(10)),
+                ausencia(sindi, DIA.withHour(10), DIA.withHour(10)),
+                global(DIA.withHour(12), DIA.withHour(10)),
+                global(DIA.withHour(10), DIA.withHour(10)))) {
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("La fecha y hora de fin deben ser posteriores a las de inicio.");
+        }
+        assertThat(inicios(admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/" + sindi.getId(), null))).isEmpty();
+        assertThat(inicios(admin(HttpMethod.GET, "/api/admin/bloqueos/globales", null))).isEmpty();
+    }
+
+    @Test
+    void una_ausencia_de_varios_dias_se_permite() {
+        var r = ausencia(sindi, DIA.withHour(10), DIA.plusDays(3).withHour(10));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     /** Inicio de cada periodo del listado con el motivo de este test, en el orden en que llegan. */

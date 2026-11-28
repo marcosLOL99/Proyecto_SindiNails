@@ -69,6 +69,68 @@ class TurnosAdminApiTest {
                 "2030-01-07 10:00-14:00", "2030-01-07 16:00-20:00", "2030-01-08 16:00-20:00");
     }
 
+    // ---------------------------------------------------------------- un turno acaba después de empezar
+
+    @Test
+    void crear_un_turno_que_acaba_antes_de_empezar_o_a_la_vez_responde_400_y_no_lo_guarda() throws Exception {
+        for (String fin : List.of("09:00", "10:00")) {
+            var r = crear(sindi, LUNES, "10:00", fin);
+
+            assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("La hora de fin debe ser posterior a la de inicio.");
+        }
+        assertThat(turnosDe(sindi)).isEmpty();
+    }
+
+    @Test
+    void crear_un_turno_de_un_minuto_se_permite() throws Exception {
+        assertThat(crear(sindi, LUNES, "10:00", "10:01").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    void editar_un_turno_para_que_acabe_antes_de_empezar_responde_400_y_no_lo_cambia() throws Exception {
+        Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
+
+        var r = editar(id, sindi, LUNES, "14:00", "10:00");
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La hora de fin debe ser posterior a la de inicio.");
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void un_lote_con_un_dia_que_acaba_antes_de_empezar_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"},
+                "1":{"activo":true,"horaInicio":"14:00","horaFin":"10:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La hora de fin debe ser posterior a la de inicio.");
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
+    @Test
+    void un_lote_con_el_descanso_fuera_del_horario_o_al_reves_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+        for (String descanso : List.of(
+                "\"horaInicioDescanso\":\"15:00\",\"horaFinDescanso\":\"16:00\"",
+                "\"horaInicioDescanso\":\"09:00\",\"horaFinDescanso\":\"11:00\"",
+                "\"horaInicioDescanso\":\"12:00\",\"horaFinDescanso\":\"11:00\"",
+                "\"horaInicioDescanso\":\"10:00\",\"horaFinDescanso\":\"11:00\"",
+                "\"horaInicioDescanso\":\"13:00\",\"horaFinDescanso\":\"14:00\"")) {
+            var r = lote(sindi, """
+                    "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00",%s}
+                    """.formatted(descanso));
+
+            assertThat(r.getStatusCode()).as(descanso).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("El descanso debe empezar y acabar dentro del horario.");
+        }
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
     // ---------------------------------------------------------------- crear la semana en lote
 
     @Test
@@ -92,6 +154,25 @@ class TurnosAdminApiTest {
     }
 
     // ---------------------------------------------------------------- utilidades
+
+    private ResponseEntity<String> crear(Trabajador t, LocalDate fecha, String inicio, String fin) {
+        return admin(HttpMethod.POST, "/api/admin/turnos", turnoJson(t, fecha, inicio, fin));
+    }
+
+    private ResponseEntity<String> editar(Long id, Trabajador t, LocalDate fecha, String inicio, String fin) {
+        return admin(HttpMethod.PUT, "/api/admin/turnos/" + id, turnoJson(t, fecha, inicio, fin));
+    }
+
+    private static String turnoJson(Trabajador t, LocalDate fecha, String inicio, String fin) {
+        return """
+                {"trabajadorId":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
+                """.formatted(t.getId(), fecha, inicio, fin);
+    }
+
+    private Long idDe(ResponseEntity<String> r) throws Exception {
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        return json.readTree(r.getBody()).path("id").asLong();
+    }
 
     private ResponseEntity<String> lote(Trabajador t, String horarios) {
         return admin(HttpMethod.POST, "/api/admin/turnos/batch", """

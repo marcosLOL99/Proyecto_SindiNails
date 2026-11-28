@@ -95,18 +95,6 @@ class TurnosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_crear_con_fin_antes_del_inicio() {
-            // SUSPICIOUS (T1): se acepta un turno que acaba antes de empezar.
-            assertThat(resumen(crear(sindi, LUNES, "14:00", "10:00"))).isEqualTo("201 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"14:00:00\",\"horaFin\":\"10:00:00\"}");
-        }
-
-        @Test
-        void characterises_crear_con_fin_igual_al_inicio() {
-            // SUSPICIOUS (T1): se acepta un turno de duración cero.
-            assertThat(resumen(crear(sindi, LUNES, "10:00", "10:00"))).isEqualTo("201 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"10:00:00\"}");
-        }
-
-        @Test
         void characterises_crear_un_turno_que_se_solapa_con_otro() {
             datos.turno(sindi, LUNES, "10:00", "14:00");
             // SUSPICIOUS (T2): se aceptan dos turnos solapados de la misma trabajadora el mismo día.
@@ -153,13 +141,6 @@ class TurnosAdminCharacterisationTest {
             assertThat(resumen(editar(id, ana, LUNES, "10:00", "14:00"))).isEqualTo("200 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Ana\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}");
             assertThat(listar(sindi)).isEqualTo("200 []");
             assertThat(listar(ana)).isEqualTo("200 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Ana\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}]");
-        }
-
-        @Test
-        void characterises_editar_con_fin_antes_del_inicio() {
-            Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
-            // SUSPICIOUS (T1): igual que al crear.
-            assertThat(resumen(editar(id, sindi, LUNES, "14:00", "10:00"))).isEqualTo("200 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"14:00:00\",\"horaFin\":\"10:00:00\"}");
         }
 
         @Test
@@ -227,24 +208,6 @@ class TurnosAdminCharacterisationTest {
                     """);
             // SUSPICIOUS (T4): los días 7 y -1 crean turnos fuera de la semana (y esos no se sustituyen al repetir el lote).
             assertThat(resumen(r)).isEqualTo("201 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-14\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-06\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}]");
-        }
-
-        @Test
-        void characterises_lote_con_descanso_fuera_del_horario() {
-            var r = lote(sindi, """
-                    "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00","horaInicioDescanso":"15:00","horaFinDescanso":"16:00"}
-                    """);
-            // SUSPICIOUS (T1): un descanso fuera del horario produce turnos 10:00-15:00 y 16:00-14:00.
-            assertThat(resumen(r)).isEqualTo("201 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"15:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"16:00:00\",\"horaFin\":\"14:00:00\"}]");
-        }
-
-        @Test
-        void characterises_lote_con_fin_antes_del_inicio() {
-            var r = lote(sindi, """
-                    "0":{"activo":true,"horaInicio":"14:00","horaFin":"10:00"}
-                    """);
-            // SUSPICIOUS (T1): igual que al crear.
-            assertThat(resumen(r)).isEqualTo("201 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"14:00:00\",\"horaFin\":\"10:00:00\"}]");
         }
 
         @Test

@@ -3,6 +3,7 @@ package com.SindiNails.backend.service;
 import com.SindiNails.backend.dto.CreateTurnoBatchDto;
 import com.SindiNails.backend.dto.CreateUpdateTurnoDto;
 import com.SindiNails.backend.dto.TurnoDto;
+import com.SindiNails.backend.exception.PeticionNoValidaException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Turno;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -34,6 +36,7 @@ public class TurnoService {
     }
 
     public TurnoDto createTurno(CreateUpdateTurnoDto turnoDto) {
+        validarHoras(turnoDto.getHoraInicio(), turnoDto.getHoraFin());
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
 
@@ -48,6 +51,7 @@ public class TurnoService {
     }
 
     public TurnoDto updateTurno(Long id, CreateUpdateTurnoDto turnoDto) {
+        validarHoras(turnoDto.getHoraInicio(), turnoDto.getHoraFin());
         Turno turno = turnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
 
@@ -65,6 +69,7 @@ public class TurnoService {
 
     @Transactional
     public List<TurnoDto> createTurnoBatch(CreateTurnoBatchDto batchDto) {
+        batchDto.getHorarios().values().forEach(TurnoService::validarDia);
         Trabajador trabajador = trabajadorRepository.findById(batchDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + batchDto.getTrabajadorId()));
 
@@ -102,6 +107,28 @@ public class TurnoService {
             throw new ResourceNotFoundException("No se encontró el turno con ID: " + id);
         }
         turnoRepository.deleteById(id);
+    }
+
+    private static void validarHoras(LocalTime inicio, LocalTime fin) {
+        if (!fin.isAfter(inicio)) {
+            throw new PeticionNoValidaException("La hora de fin debe ser posterior a la de inicio.");
+        }
+    }
+
+    /** Un día activo de la semana: su horario, y el descanso (si lo tiene) estrictamente dentro de él. */
+    private static void validarDia(CreateTurnoBatchDto.HorarioDia dia) {
+        if (!dia.isActivo() || dia.getHoraInicio() == null || dia.getHoraFin() == null) {
+            return;
+        }
+        validarHoras(dia.getHoraInicio(), dia.getHoraFin());
+        if (dia.getHoraInicioDescanso() != null && dia.getHoraFinDescanso() != null) {
+            boolean dentro = dia.getHoraInicioDescanso().isAfter(dia.getHoraInicio())
+                    && dia.getHoraFinDescanso().isAfter(dia.getHoraInicioDescanso())
+                    && dia.getHoraFin().isAfter(dia.getHoraFinDescanso());
+            if (!dentro) {
+                throw new PeticionNoValidaException("El descanso debe empezar y acabar dentro del horario.");
+            }
+        }
     }
 
     private TurnoDto mapToDto(Turno turno) {

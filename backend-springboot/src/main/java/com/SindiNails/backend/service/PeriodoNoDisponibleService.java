@@ -22,6 +22,9 @@ public class PeriodoNoDisponibleService {
     private final RepositorioTrabajador trabajadorRepository;
 
     public BloqueoDto crearBloqueo(BloqueoDto bloqueoDto) {
+        if (!bloqueoDto.getFechaHoraFin().isAfter(bloqueoDto.getFechaHoraInicio())) {
+            throw new PeticionNoValidaException("La fecha y hora de fin deben ser posteriores a las de inicio.");
+        }
         PeriodoNoDisponible periodo = new PeriodoNoDisponible();
         periodo.setFechaHoraInicio(bloqueoDto.getFechaHoraInicio());
         periodo.setFechaHoraFin(bloqueoDto.getFechaHoraFin());
