@@ -57,8 +57,14 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
   - [x] C3: editar una clienta exige lo mismo que el registro: todos los campos obligatorios y un email válido.
   - [x] C4: borrar una clienta con citas responde 409 con mensaje y no borra nada (sus citas son el historial del salón).
 - [x] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
-- [ ] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
-- [ ] 3.5 Corregir los bugs que salgan en 3.3 y 3.4 (un paso `tdd` por bug, después de decidirlo con el usuario).
+- [x] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
+- [ ] 3.5 Corregir lo encontrado en 3.3 (T1–T7) y 3.4 (B1–B5), decidido con el usuario (un paso `tdd` cada uno):
+  - [ ] Listados de turnos y de ausencias o bloqueos ordenados por fecha y hora (T7, B4).
+  - [ ] Ausencias de una trabajadora que no existe → 404, como sus turnos (B5).
+  - [ ] Un turno o un periodo no disponible debe acabar después de empezar, y el descanso del lote debe caer dentro del horario → 400 (T1, B1).
+  - [ ] Dos turnos de la misma trabajadora el mismo día no pueden solaparse → 409 (T2).
+  - [ ] Lote semanal: días del 0 al 6, horarios obligatorios, un día activo necesita sus horas, y mensajes que dicen qué falta; un tipo de bloqueo desconocido o un cuerpo mal formado → 400 con mensaje (T4, T5, T6, B3).
+  - [ ] Editar o borrar turnos, rehacer la semana o crear una ausencia o un bloqueo no puede dejar citas no canceladas **futuras** fuera de turno o dentro del periodo bloqueado → 409 (T3, B2). Las citas pasadas no cuentan.
 - [ ] 3.6 Caracterizar el JSON de los listados de citas: `/api/citas/mis-citas`, `/api/admin/citas`, `/api/admin/stats/citas-semanales`, `/api/citas/disponibilidad`, `/api/citas/dias-no-disponibles`.
 - [ ] 3.7 Corregir: un email duplicado por una carrera (o puesto por la administración) da 409 con mensaje, no 500 (`DataIntegrityViolationException` en `ManejadorDeErrores`).
 - [ ] 3.8 Corregir: los 404 llegan con `{"message": "..."}` como el resto de errores.
