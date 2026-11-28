@@ -68,7 +68,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.6 Caracterizar el JSON de los listados de citas: `/api/citas/mis-citas`, `/api/admin/citas`, `/api/admin/stats/citas-semanales`, `/api/citas/disponibilidad`, `/api/citas/dias-no-disponibles`.
 - [x] 3.7 Corregir: un email duplicado por una carrera (o puesto por la administración) da 409 con mensaje, no 500 (`DataIntegrityViolationException` en `ManejadorDeErrores`).
 - [x] 3.8 Corregir: todos los errores llegan con su estado y `{"message": "..."}`: los 404, un parámetro que falta o mal escrito (400, L2) y un mes que no existe en los días no disponibles (400 en vez de 500, L1).
-- [ ] 3.9 Corregir: dos reservas simultáneas del mismo hueco no quedan confirmadas las dos (test con dos reservas en paralelo; bloqueo por trabajadora o restricción en la base de datos).
+- [x] 3.9 Corregir: dos reservas simultáneas del mismo hueco no quedan confirmadas las dos (test con dos reservas en paralelo; bloqueo por trabajadora o restricción en la base de datos).
 - [ ] 3.10 Corregir: `toString()`/`hashCode()` de las entidades no entran en recursión (sustituir `@Data` de Lombok en las entidades JPA).
 - [ ] 3.11 Cierre de fase.
 
