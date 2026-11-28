@@ -14,6 +14,7 @@ import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RepositorioTurno;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -59,11 +60,14 @@ public class TurnoService {
         return mapToDto(nuevoTurno);
     }
 
+    /** Ver {@link #bloquearTrabajadoras}: por qué READ COMMITTED. */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public TurnoDto updateTurno(Long id, CreateUpdateTurnoDto turnoDto) {
         validarHoras(turnoDto.getHoraInicio(), turnoDto.getHoraFin());
         Turno turno = turnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
 
+        bloquearTrabajadoras(turno.getTrabajador().getId(), turnoDto.getTrabajadorId());
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
 
@@ -86,10 +90,10 @@ public class TurnoService {
         return mapToDto(turnoActualizado);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<TurnoDto> createTurnoBatch(CreateTurnoBatchDto batchDto) {
         batchDto.getHorarios().forEach(TurnoService::validarDia);
-        Trabajador trabajador = trabajadorRepository.findById(batchDto.getTrabajadorId())
+        Trabajador trabajador = trabajadorRepository.findByIdBloqueando(batchDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + batchDto.getTrabajadorId()));
 
         List<Turno> nuevosTurnos = new ArrayList<>();
@@ -129,12 +133,28 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deleteTurno(Long id) {
         Turno turno = turnoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
         Long trabajadorId = turno.getTrabajador().getId();
+        bloquearTrabajadoras(trabajadorId);
         validarCitasCubiertas(trabajadorId, turno.getFecha(), franjasDelDiaSin(trabajadorId, turno.getFecha(), id));
         turnoRepository.delete(turno);
+    }
+
+    /**
+     * Bloquea las filas de las trabajadoras (SELECT ... FOR UPDATE), en orden de id para que dos transacciones
+     * no se esperen en cruz, hasta el final de la transacción. Las reservas toman el mismo bloqueo
+     * (CitaService), así que una reserva y un cambio de turnos de la misma trabajadora van de uno en uno.
+     * Las transacciones que lo usan son READ COMMITTED: leen el turno antes de saber qué trabajadora bloquear,
+     * y con REPEATABLE READ esa primera lectura fijaría la foto de los datos y no verían la cita que una
+     * reserva acaba de guardar mientras esperaban.
+     */
+    private void bloquearTrabajadoras(Long... trabajadorIds) {
+        java.util.Arrays.stream(trabajadorIds).distinct().sorted().forEach(id ->
+                trabajadorRepository.findByIdBloqueando(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + id)));
     }
 
     /** Un tramo horario de un día. */

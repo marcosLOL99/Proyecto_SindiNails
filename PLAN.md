@@ -69,6 +69,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.7 Corregir: un email duplicado por una carrera (o puesto por la administración) da 409 con mensaje, no 500 (`DataIntegrityViolationException` en `ManejadorDeErrores`).
 - [x] 3.8 Corregir: todos los errores llegan con su estado y `{"message": "..."}`: los 404, un parámetro que falta o mal escrito (400, L2) y un mes que no existe en los días no disponibles (400 en vez de 500, L1).
 - [x] 3.9 Corregir: dos reservas simultáneas del mismo hueco no quedan confirmadas las dos (test con dos reservas en paralelo; bloqueo por trabajadora o restricción en la base de datos).
+- [x] 3.9b Corregir: editar, borrar o rehacer turnos y crear una ausencia toman el mismo bloqueo que las reservas (una reserva cruzada con ellos no se cuela). Los bloqueos globales quedan para la Fase 4.
 - [ ] 3.10 Corregir: `toString()`/`hashCode()` de las entidades no entran en recursión (sustituir `@Data` de Lombok en las entidades JPA).
 - [ ] 3.11 Cierre de fase.
 
@@ -76,7 +77,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 
 **Objetivo:** reestructurar el backend sin cambiar el comportamiento (con la red de tests de la Fase 3) y tener un esquema de base de datos versionado. Antes de editar se hace la evaluación `Critical/High/Nice/Skip → Decision` de la skill `refactoring`.
 
-- [ ] 4.1 `CitaService`: diseñar su interfaz con `codebase-design`. Una sola comprobación de "el hueco cabe" para lo que se ofrece y lo que se acepta. `getDiasNoDisponibles` sin 42 llamadas con varias consultas cada una. Quitar lo repetido entre `createCita` y `updateCita`.
+- [ ] 4.1 `CitaService`: diseñar su interfaz con `codebase-design`. Incluir que un bloqueo global no deje colarse una reserva cruzada (hoy no bloquea a ninguna trabajadora; ver peligro 7b). Una sola comprobación de "el hueco cabe" para lo que se ofrece y lo que se acepta. `getDiasNoDisponibles` sin 42 llamadas con varias consultas cada una. Quitar lo repetido entre `createCita` y `updateCita`.
 - [ ] 4.2 Sustituir `CitaServiceCharacterisationTest` por tests de comportamiento permanentes y borrarlo. Lo mismo con el resto de `*CharacterisationTest` que ya estén cubiertos.
 - [ ] 4.3 Revisar los controladores: `AdminController` (184 líneas, todos los recursos) ¿se divide por recurso? Controladores solo HTTP.
 - [ ] 4.4 Erratas y nombres: `RopositorioPeriodoNoDisp` → `RepositorioPeriodoNoDisponible`.

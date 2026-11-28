@@ -13,6 +13,7 @@ import com.SindiNails.backend.repository.RopositorioPeriodoNoDisp;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -28,6 +29,11 @@ public class PeriodoNoDisponibleService {
     private final RepositorioCita citaRepository;
     private final Clock clock;
 
+    /**
+     * Una ausencia bloquea antes la fila de su trabajadora (como las reservas, ver CitaService), así una
+     * reserva que se cruce con ella no puede colarse dentro. Los bloqueos globales todavía no bloquean nada.
+     */
+    @Transactional
     public BloqueoDto crearBloqueo(BloqueoDto bloqueoDto) {
         if (!bloqueoDto.getFechaHoraFin().isAfter(bloqueoDto.getFechaHoraInicio())) {
             throw new PeticionNoValidaException("La fecha y hora de fin deben ser posteriores a las de inicio.");
@@ -42,7 +48,7 @@ public class PeriodoNoDisponibleService {
             if (bloqueoDto.getTrabajadorId() == null) {
                 throw new PeticionNoValidaException("El ID del trabajador es obligatorio para bloqueos de tipo TRABAJADOR.");
             }
-            Trabajador trabajador = trabajadorRepository.findById(bloqueoDto.getTrabajadorId())
+            Trabajador trabajador = trabajadorRepository.findByIdBloqueando(bloqueoDto.getTrabajadorId())
                     .orElseThrow(() -> new ResourceNotFoundException("Trabajador no encontrado con id: " + bloqueoDto.getTrabajadorId()));
             periodo.setTrabajador(trabajador);
         }
