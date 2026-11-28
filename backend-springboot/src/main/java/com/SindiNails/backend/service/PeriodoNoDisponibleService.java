@@ -42,6 +42,9 @@ public class PeriodoNoDisponibleService {
     }
 
     public List<BloqueoDto> getBloqueosPorTrabajador(Long trabajadorId) {
+        if (!trabajadorRepository.existsById(trabajadorId)) {
+            throw new ResourceNotFoundException("Trabajador no encontrado con id: " + trabajadorId);
+        }
         return periodoNoDisponibleRepository.findByTrabajadorIdOrderByFechaHoraInicioAsc(trabajadorId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());

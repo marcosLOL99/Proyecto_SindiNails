@@ -158,13 +158,6 @@ class BloqueosAdminCharacterisationTest {
 
     @Nested
     class Listar {
-
-        @Test
-        void characterises_ausencias_de_una_trabajadora_que_no_existe() {
-            // SUSPICIOUS (B5): da 200 [] en vez de 404, al contrario que los turnos de una trabajadora que no existe.
-            assertThat(resumen(admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/99999999", null)))
-                    .isEqualTo("200 []");
-        }
     }
 
     // ---------------------------------------------------------------- borrar

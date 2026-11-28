@@ -79,6 +79,21 @@ class BloqueosAdminApiTest {
                 .containsExactly("2030-01-07T10:00:00", "2030-01-07T16:00:00", "2030-01-08T10:00:00");
     }
 
+    @Test
+    void las_ausencias_de_una_trabajadora_que_no_existe_responden_404() {
+        var r = admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/99999999", null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void una_trabajadora_sin_ausencias_tiene_el_listado_vacio() {
+        var r = admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/" + sindi.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(r.getBody()).isEqualTo("[]");
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     /** Inicio de cada periodo del listado con el motivo de este test, en el orden en que llegan. */
