@@ -70,7 +70,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.8 Corregir: todos los errores llegan con su estado y `{"message": "..."}`: los 404, un parámetro que falta o mal escrito (400, L2) y un mes que no existe en los días no disponibles (400 en vez de 500, L1).
 - [x] 3.9 Corregir: dos reservas simultáneas del mismo hueco no quedan confirmadas las dos (test con dos reservas en paralelo; bloqueo por trabajadora o restricción en la base de datos).
 - [x] 3.9b Corregir: editar, borrar o rehacer turnos y crear una ausencia toman el mismo bloqueo que las reservas (una reserva cruzada con ellos no se cuela). Los bloqueos globales quedan para la Fase 4.
-- [ ] 3.10 Corregir: `toString()`/`hashCode()` de las entidades no entran en recursión (sustituir `@Data` de Lombok en las entidades JPA).
+- [x] 3.10 Corregir: `toString()`/`hashCode()` de las entidades no entran en recursión (sustituir `@Data` de Lombok en las entidades JPA).
 - [ ] 3.11 Cierre de fase.
 
 ## Fase 4 — Refactor del backend y base de datos con Flyway
