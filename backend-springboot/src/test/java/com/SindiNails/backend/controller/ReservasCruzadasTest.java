@@ -73,10 +73,88 @@ class ReservasCruzadasTest {
         })).doesNotContain("las dos");
     }
 
+    @Test
+    void una_reserva_y_acortar_su_turno_a_la_vez_no_salen_bien_las_dos() throws Exception {
+        assertThat(rondas(sindi -> {
+            datos.turno(sindi, LUNES, "10:00", "14:00");
+            Long turnoId = turnos.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(sindi.getId(), LUNES).get(0).getId();
+            return () -> admin(HttpMethod.PUT, "/api/admin/turnos/" + turnoId, """
+                    {"trabajadorId":%d,"fecha":"%s","horaInicio":"12:00","horaFin":"14:00"}
+                    """.formatted(sindi.getId(), LUNES));
+        })).doesNotContain("las dos");
+    }
+
+    @Test
+    void dos_turnos_solapados_creados_a_la_vez_no_se_guardan_los_dos() throws Exception {
+        nuevaAdministradora();
+        List<String> resultados = new ArrayList<>();
+        for (int i = 0; i < RONDAS; i++) {
+            Trabajador sindi = datos.trabajadora("Sindi" + i);
+            var r = aLaVez(
+                    () -> admin(HttpMethod.POST, "/api/admin/turnos", turnoJson(sindi, LUNES, "09:00", "14:00")),
+                    () -> admin(HttpMethod.POST, "/api/admin/turnos", turnoJson(sindi, LUNES, "12:00", "18:00")));
+            resultados.add(r.get(0).getStatusCode().is2xxSuccessful() && r.get(1).getStatusCode().is2xxSuccessful()
+                    ? "los dos" : "uno");
+        }
+        assertThat(resultados).doesNotContain("los dos");
+    }
+
+    @Test
+    void mover_un_turno_a_otra_trabajadora_y_borrarlo_a_la_vez_no_deja_su_cita_fuera_de_turno() throws Exception {
+        nuevaAdministradora();
+        servicio = datos.servicio("Semipermanente", 60);
+        LocalDate martes = LUNES.plusDays(1);
+        List<String> resultados = new ArrayList<>();
+        for (int i = 0; i < RONDAS; i++) {
+            Trabajador ana = datos.trabajadora("Ana" + i);
+            Trabajador bea = datos.trabajadora("Bea" + i);
+            datos.turno(ana, LUNES, "10:00", "14:00");
+            Long turnoId = turnos.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(ana.getId(), LUNES).get(0).getId();
+            // Una cita de Bea el martes que solo queda cubierta si el turno pasa a ser suyo ese día.
+            datos.cita(datos.clienta("Laura"), bea, servicio, martes.atTime(11, 0), EstadoCita.CONFIRMADA);
+
+            var r = aLaVez(
+                    () -> admin(HttpMethod.PUT, "/api/admin/turnos/" + turnoId, turnoJson(bea, martes, "10:00", "14:00")),
+                    () -> admin(HttpMethod.DELETE, "/api/admin/turnos/" + turnoId, null));
+            resultados.add(r.get(0).getStatusCode().is2xxSuccessful() && r.get(1).getStatusCode().is2xxSuccessful()
+                    ? "las dos" : "una");
+        }
+        // Si el turno pasa primero a Bea, borrarlo dejaría su cita fuera de turno: el borrado se rechaza (409).
+        // Si el borrado llega primero, el turno ya no existe y moverlo da 404. Las dos bien = cita fuera de turno.
+        assertThat(resultados).doesNotContain("las dos");
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private Usuario admin;
     private ServicioLocal servicio;
+
+    private void nuevaAdministradora() {
+        admin = usuarios.save(Usuario.builder().nombre("Admin").apellidos("Salón")
+                .email("admin-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+                .telefono("600000000").password("x").role(Role.ADMIN).build());
+    }
+
+    private static String turnoJson(Trabajador t, LocalDate fecha, String inicio, String fin) {
+        return """
+                {"trabajadorId":%d,"fecha":"%s","horaInicio":"%s","horaFin":"%s"}
+                """.formatted(t.getId(), fecha, inicio, fin);
+    }
+
+    /** Lanza las dos peticiones a la vez y devuelve sus respuestas en el mismo orden. */
+    private static List<ResponseEntity<String>> aLaVez(Callable<ResponseEntity<String>> a,
+                                                        Callable<ResponseEntity<String>> b) throws Exception {
+        ExecutorService hilos = Executors.newFixedThreadPool(2);
+        try {
+            CountDownLatch salida = new CountDownLatch(1);
+            Future<ResponseEntity<String>> fa = hilos.submit(() -> { salida.await(); return a.call(); });
+            Future<ResponseEntity<String>> fb = hilos.submit(() -> { salida.await(); return b.call(); });
+            salida.countDown();
+            return List.of(fa.get(60, TimeUnit.SECONDS), fb.get(60, TimeUnit.SECONDS));
+        } finally {
+            hilos.shutdownNow();
+        }
+    }
 
     /**
      * En cada ronda, una trabajadora nueva: se prepara su horario y, a la vez, una clienta reserva a las 10:00

@@ -12,6 +12,8 @@ import com.SindiNails.backend.model.Turno;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioTrabajador;
 import com.SindiNails.backend.repository.RepositorioTurno;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -33,6 +35,7 @@ public class TurnoService {
     private final RepositorioTrabajador trabajadorRepository;
     private final RepositorioCita citaRepository;
     private final Clock clock;
+    private final EntityManager entityManager;
 
     public List<TurnoDto> getTurnosByTrabajador(Long trabajadorId) {
         if (!trabajadorRepository.existsById(trabajadorId)) {
@@ -43,8 +46,10 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public TurnoDto createTurno(CreateUpdateTurnoDto turnoDto) {
         validarHoras(turnoDto.getHoraInicio(), turnoDto.getHoraFin());
+        bloquearTrabajadoras(turnoDto.getTrabajadorId());
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
 
@@ -68,6 +73,7 @@ public class TurnoService {
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
 
         bloquearTrabajadoras(turno.getTrabajador().getId(), turnoDto.getTrabajadorId());
+        releerTrasBloquear(turno, turno.getTrabajador().getId(), turnoDto.getTrabajadorId());
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
 
@@ -139,6 +145,7 @@ public class TurnoService {
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el turno con ID: " + id));
         Long trabajadorId = turno.getTrabajador().getId();
         bloquearTrabajadoras(trabajadorId);
+        releerTrasBloquear(turno, trabajadorId);
         validarCitasCubiertas(trabajadorId, turno.getFecha(), franjasDelDiaSin(trabajadorId, turno.getFecha(), id));
         turnoRepository.delete(turno);
     }
@@ -155,6 +162,22 @@ public class TurnoService {
         java.util.Arrays.stream(trabajadorIds).distinct().sorted().forEach(id ->
                 trabajadorRepository.findByIdBloqueando(id)
                         .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + id)));
+    }
+
+    /**
+     * El turno se leyó antes de conseguir el bloqueo; mientras se esperaba, otra edición pudo cambiarlo de
+     * trabajadora o de día, o borrarlo. Se vuelve a leer de la base de datos (READ COMMITTED: lo último confirmado)
+     * y, si ahora es de una trabajadora que no se ha bloqueado, se rechaza en vez de comprobar las citas equivocadas.
+     */
+    private void releerTrasBloquear(Turno turno, Long... trabajadorasBloqueadas) {
+        try {
+            entityManager.refresh(turno);
+        } catch (EntityNotFoundException e) {
+            throw new ResourceNotFoundException("No se encontró el turno con ID: " + turno.getId());
+        }
+        if (!java.util.Arrays.asList(trabajadorasBloqueadas).contains(turno.getTrabajador().getId())) {
+            throw new ReglaDeNegocioException("El turno ha cambiado mientras se guardaba. Vuelve a intentarlo.");
+        }
     }
 
     /** Un tramo horario de un día. */
