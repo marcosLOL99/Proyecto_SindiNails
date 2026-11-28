@@ -101,10 +101,13 @@ public class CitaService {
 
         LocalDateTime fechaHoraInicio = updateCitaDto.getFechaHoraInicio();
         LocalDateTime fechaHoraFin = fechaHoraInicio.plusMinutes(servicio.getDuracionEnMinutos());
-        // Si la hora de inicio no cambia, es una corrección (servicio, trabajadora) y no una cita nueva en otro
-        // horario: se permite aunque la cita ya haya pasado o la trabajadora ya no tenga turno. El solape sí se comprueba.
-        boolean cambiaLaHora = !fechaHoraInicio.equals(citaExistente.getFechaHoraInicio());
-        if (cambiaLaHora) {
+        // Corregir una cita que ya ha empezado (servicio, trabajadora) sin cambiar su hora se permite aunque la
+        // trabajadora ya no esté activa o no tenga turno. Una cita futura cumple siempre las reglas de horario,
+        // también si mantiene la hora: si no, podría quedar fuera de turno o dentro de una ausencia.
+        // El solape con otras citas se comprueba siempre.
+        boolean correccionDeCitaPasada = fechaHoraInicio.equals(citaExistente.getFechaHoraInicio())
+                && citaExistente.getFechaHoraInicio().isBefore(LocalDateTime.now(clock));
+        if (!correccionDeCitaPasada) {
             validarHorarioReservable(trabajador, fechaHoraInicio, fechaHoraFin);
         }
 

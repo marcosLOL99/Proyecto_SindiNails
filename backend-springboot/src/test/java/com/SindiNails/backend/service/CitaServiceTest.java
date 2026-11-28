@@ -440,6 +440,42 @@ class CitaServiceTest {
         }
 
         @Test
+        void sin_cambiar_la_hora_una_cita_futura_no_puede_pasar_a_una_trabajadora_sin_turno_ni_a_una_ausente() {
+            Trabajador sinTurno = datos.trabajadora("Ana");
+            Trabajador ausente = datos.trabajadora("Bea");
+            datos.turno(ausente, manana, "10:00", "18:00");
+            datos.ausencia(ausente, manana.atTime(9, 0), manana.atTime(12, 0));
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, sinTurno, manana.atTime(10, 0))))
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(manicura60, ausente, manana.atTime(10, 0))))
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
+                    .hasMessage("El horario seleccionado está bloqueado.");
+        }
+
+        @Test
+        void sin_cambiar_la_hora_una_cita_futura_no_puede_alargarse_mas_alla_del_turno() {
+            ServicioLocal largo120 = datos.servicio("Uñas esculpidas", 120);
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(17, 0), EstadoCita.CONFIRMADA);
+
+            assertThatThrownBy(() -> citaService.updateCita(cita.getId(), reserva(largo120, sindi, manana.atTime(17, 0))))
+                    .isExactlyInstanceOf(ReglaDeNegocioException.class)
+                    .hasMessage("La trabajadora no trabaja en el horario seleccionado.");
+        }
+
+        @Test
+        void sin_cambiar_la_hora_una_cita_futura_puede_cambiar_de_servicio_dentro_del_turno() {
+            ServicioLocal retirada45 = datos.servicio("Retirada", 45);
+            Cita cita = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CONFIRMADA);
+
+            CitaDto corregida = citaService.updateCita(cita.getId(), reserva(retirada45, sindi, manana.atTime(10, 0)));
+
+            assertThat(corregida.getFechaHoraFin()).isEqualTo(manana.atTime(10, 45));
+        }
+
+        @Test
         void no_se_puede_mover_una_cita_cancelada() {
             Cita cancelada = datos.cita(laura, sindi, manicura60, manana.atTime(10, 0), EstadoCita.CANCELADA);
 
