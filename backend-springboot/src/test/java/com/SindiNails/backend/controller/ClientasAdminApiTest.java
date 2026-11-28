@@ -68,6 +68,48 @@ class ClientasAdminApiTest {
         assertThat(rolGuardado(ana)).isEqualTo(Role.USER);
     }
 
+    // ---------------------------------------------------------------- C2: solo clientas
+
+    @Test
+    void editar_una_administradora_por_la_ruta_de_clientas_responde_404_y_no_la_cambia() {
+        Usuario jefa = usuario("Jefa", Role.ADMIN);
+
+        var r = editar(jefa, """
+                {"nombre":"Cambiada","apellidos":"Salón","email":"%s","telefono":"611111111","role":"USER"}
+                """.formatted(jefa.getEmail()));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        Usuario guardada = usuarios.findById(jefa.getId()).orElseThrow();
+        assertThat(guardada.getNombre()).isEqualTo("Jefa");
+        assertThat(guardada.getTelefono()).isEqualTo("600000000");
+    }
+
+    @Test
+    void borrar_una_administradora_por_la_ruta_de_clientas_responde_404_y_no_la_borra() {
+        Usuario jefa = usuario("Jefa", Role.ADMIN);
+
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + jefa.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(usuarios.existsById(jefa.getId())).isTrue();
+    }
+
+    @Test
+    void una_administradora_no_puede_borrar_su_propia_cuenta_por_la_ruta_de_clientas() {
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + admin.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(usuarios.existsById(admin.getId())).isTrue();
+    }
+
+    @Test
+    void borrar_una_clienta_sin_citas_la_borra() {
+        var r = comoAdmin(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(usuarios.existsById(ana.getId())).isFalse();
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private Usuario usuario(String nombre, Role rol) {

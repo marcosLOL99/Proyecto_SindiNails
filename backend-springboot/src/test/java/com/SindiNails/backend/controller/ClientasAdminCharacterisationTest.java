@@ -93,17 +93,6 @@ class ClientasAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_editar_a_una_administradora_por_la_ruta_de_clientas() throws Exception {
-            Usuario otraAdmin = usuario("Jefa", Role.ADMIN);
-            var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + otraAdmin.getId(), """
-                    {"nombre":"Cambiada","apellidos":"Salón","email":"%s","telefono":"600000000","role":"USER"}
-                    """.formatted(otraAdmin.getEmail()));
-            // SUSPICIOUS (C2): la ruta de clientas también edita a una administradora.
-            assertThat(r.getStatusCode().value()).isEqualTo(200);
-            assertThat(guardada(otraAdmin)).isEqualTo("Cambiada|Salón|jefa-XXXX@test.com|600000000|ADMIN");
-        }
-
-        @Test
         void characterises_editar_con_email_no_valido() throws Exception {
             var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
                     {"nombre":"Ana","apellidos":"Pérez","email":"no-es-un-email","telefono":"600000000","role":"USER"}
@@ -150,13 +139,6 @@ class ClientasAdminCharacterisationTest {
     class Borrar {
 
         @Test
-        void characterises_borrar_una_clienta_sin_citas() throws Exception {
-            var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/" + ana.getId(), null);
-            assertThat(resumen(r)).isEqualTo("204 null");
-            assertThat(usuarios.existsById(ana.getId())).isEqualTo(false);
-        }
-
-        @Test
         void characterises_borrar_una_clienta_con_citas() throws Exception {
             var servicio = datos.servicio("Semipermanente", 60);
             var trabajadora = datos.trabajadora("Sindi");
@@ -166,23 +148,6 @@ class ClientasAdminCharacterisationTest {
             // SUSPICIOUS (C4): la clave foránea de sus citas impide borrarla y llega un 500 sin mensaje.
             assertThat(resumen(r)).isEqualTo("500 {\"timestamp\":T,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/clientes/N\"}");
             assertThat(usuarios.existsById(ana.getId())).isEqualTo(true);
-        }
-
-        @Test
-        void characterises_borrar_una_administradora_por_la_ruta_de_clientas() throws Exception {
-            Usuario otraAdmin = usuario("Jefa", Role.ADMIN);
-            var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/" + otraAdmin.getId(), null);
-            // SUSPICIOUS (C2): la ruta de clientas también borra administradoras.
-            assertThat(resumen(r)).isEqualTo("204 null");
-            assertThat(usuarios.existsById(otraAdmin.getId())).isEqualTo(false);
-        }
-
-        @Test
-        void characterises_borrarse_a_si_misma() throws Exception {
-            var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/" + admin.getId(), null);
-            // SUSPICIOUS (C2): una administradora puede borrar su propia cuenta (y dejar el salón sin ninguna).
-            assertThat(resumen(r)).isEqualTo("204 null");
-            assertThat(usuarios.existsById(admin.getId())).isEqualTo(false);
         }
 
         @Test

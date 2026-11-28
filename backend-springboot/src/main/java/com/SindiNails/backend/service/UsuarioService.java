@@ -26,8 +26,7 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioDto updateUsuario(Long id, UsuarioDto usuarioDto) {
-        Usuario usuario = repositorioUsuario.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con id: " + id));
+        Usuario usuario = buscarClienta(id);
 
         usuario.setNombre(usuarioDto.getNombre());
         usuario.setApellidos(usuarioDto.getApellidos());
@@ -39,10 +38,14 @@ public class UsuarioService {
     }
 
     public void deleteUsuario(Long id) {
-        if (!repositorioUsuario.existsById(id)) {
-            throw new ResourceNotFoundException("Usuario no encontrado con id: " + id);
-        }
-        repositorioUsuario.deleteById(id);
+        repositorioUsuario.delete(buscarClienta(id));
+    }
+
+    /** Solo clientas: una administradora no se edita ni se borra desde la gestión de clientas (404, como si no existiera). */
+    private Usuario buscarClienta(Long id) {
+        return repositorioUsuario.findById(id)
+                .filter(usuario -> usuario.getRole() == Role.USER)
+                .orElseThrow(() -> new ResourceNotFoundException("Clienta no encontrada con id: " + id));
     }
 
     private UsuarioDto convertToDto(Usuario usuario) {

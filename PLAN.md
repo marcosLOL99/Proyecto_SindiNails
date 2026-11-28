@@ -53,7 +53,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.1 Caracterizar la gestión de clientas desde la administración (`UsuarioService` y `/api/admin/clientes`: listar, editar, borrar), incluido si editar deja el rol a `null`.
 - [ ] 3.2 Corregir lo encontrado en 3.1 (decidido con el usuario; un paso `tdd` cada uno):
   - [x] C1: editar una clienta desde la administración nunca cambia su rol (ni a `null` ni a ADMIN): el rol del cuerpo se ignora.
-  - [ ] C2: `/api/admin/clientes/{id}` solo trabaja con clientas: editar o borrar una administradora (incluida una misma) responde 404.
+  - [x] C2: `/api/admin/clientes/{id}` solo trabaja con clientas: editar o borrar una administradora (incluida una misma) responde 404.
   - [ ] C3: editar una clienta exige lo mismo que el registro: todos los campos obligatorios y un email válido.
   - [ ] C4: borrar una clienta con citas responde 409 con mensaje y no borra nada (sus citas son el historial del salón).
 - [ ] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
