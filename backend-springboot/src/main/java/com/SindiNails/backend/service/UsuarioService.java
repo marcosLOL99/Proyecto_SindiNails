@@ -8,6 +8,7 @@ import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,13 +31,25 @@ public class UsuarioService {
     @Transactional
     public UsuarioDto updateUsuario(Long id, UsuarioDto usuarioDto) {
         Usuario usuario = buscarClienta(id);
+        boolean emailDeOtraCuenta = repositorioUsuario.findByEmail(usuarioDto.getEmail())
+                .filter(otra -> !otra.getId().equals(id))
+                .isPresent();
+        if (emailDeOtraCuenta) {
+            throw new ReglaDeNegocioException("El email ya está en uso.");
+        }
 
         usuario.setNombre(usuarioDto.getNombre());
         usuario.setApellidos(usuarioDto.getApellidos());
         usuario.setEmail(usuarioDto.getEmail());
         usuario.setTelefono(usuarioDto.getTelefono());
 
-        Usuario usuarioActualizado = repositorioUsuario.save(usuario);
+        Usuario usuarioActualizado;
+        try {
+            usuarioActualizado = repositorioUsuario.saveAndFlush(usuario);
+        } catch (DataIntegrityViolationException e) {
+            // Otra cuenta ha tomado ese email entre la comprobación y el guardado.
+            throw new ReglaDeNegocioException("El email ya está en uso.");
+        }
         return convertToDto(usuarioActualizado);
     }
 
