@@ -95,14 +95,6 @@ class TurnosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_crear_un_turno_que_se_solapa_con_otro() {
-            datos.turno(sindi, LUNES, "10:00", "14:00");
-            // SUSPICIOUS (T2): se aceptan dos turnos solapados de la misma trabajadora el mismo día.
-            assertThat(resumen(crear(sindi, LUNES, "12:00", "16:00"))).isEqualTo("201 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"12:00:00\",\"horaFin\":\"16:00:00\"}");
-            assertThat(listar(sindi)).isEqualTo("200 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"12:00:00\",\"horaFin\":\"16:00:00\"}]");
-        }
-
-        @Test
         void characterises_crear_un_turno_en_el_pasado() {
             assertThat(resumen(crear(sindi, LocalDate.of(2020, 1, 6), "10:00", "14:00"))).isEqualTo("201 {\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2020-01-06\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}");
         }

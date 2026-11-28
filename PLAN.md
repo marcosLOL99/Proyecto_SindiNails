@@ -62,7 +62,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
   - [x] Listados de turnos y de ausencias o bloqueos ordenados por fecha y hora (T7, B4).
   - [x] Ausencias de una trabajadora que no existe → 404, como sus turnos (B5).
   - [x] Un turno o un periodo no disponible debe acabar después de empezar, y el descanso del lote debe caer dentro del horario → 400 (T1, B1).
-  - [ ] Dos turnos de la misma trabajadora el mismo día no pueden solaparse → 409 (T2).
+  - [x] Dos turnos de la misma trabajadora el mismo día no pueden solaparse → 409 (T2).
   - [ ] Lote semanal: días del 0 al 6, horarios obligatorios, un día activo necesita sus horas, y mensajes que dicen qué falta; un tipo de bloqueo desconocido o un cuerpo mal formado → 400 con mensaje (T4, T5, T6, B3).
   - [ ] Editar o borrar turnos, rehacer la semana o crear una ausencia o un bloqueo no puede dejar citas no canceladas **futuras** fuera de turno o dentro del periodo bloqueado → 409 (T3, B2). Las citas pasadas no cuentan.
 - [ ] 3.6 Caracterizar el JSON de los listados de citas: `/api/citas/mis-citas`, `/api/admin/citas`, `/api/admin/stats/citas-semanales`, `/api/citas/disponibilidad`, `/api/citas/dias-no-disponibles`.

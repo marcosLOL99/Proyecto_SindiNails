@@ -4,6 +4,7 @@ import com.SindiNails.backend.dto.CreateTurnoBatchDto;
 import com.SindiNails.backend.dto.CreateUpdateTurnoDto;
 import com.SindiNails.backend.dto.TurnoDto;
 import com.SindiNails.backend.exception.PeticionNoValidaException;
+import com.SindiNails.backend.exception.ReglaDeNegocioException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.Trabajador;
 import com.SindiNails.backend.model.Turno;
@@ -40,6 +41,8 @@ public class TurnoService {
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
 
+        validarSinSolape(trabajador, turnoDto, null);
+
         Turno turno = new Turno();
         turno.setTrabajador(trabajador);
         turno.setFecha(turnoDto.getFecha());
@@ -57,6 +60,8 @@ public class TurnoService {
 
         Trabajador trabajador = trabajadorRepository.findById(turnoDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + turnoDto.getTrabajadorId()));
+
+        validarSinSolape(trabajador, turnoDto, id);
 
         turno.setTrabajador(trabajador);
         turno.setFecha(turnoDto.getFecha());
@@ -107,6 +112,18 @@ public class TurnoService {
             throw new ResourceNotFoundException("No se encontró el turno con ID: " + id);
         }
         turnoRepository.deleteById(id);
+    }
+
+    /** Otro turno de la trabajadora ese día (sin contar el que se edita, turnoId) no puede pisarlo; contiguos sí. */
+    private void validarSinSolape(Trabajador trabajador, CreateUpdateTurnoDto turnoDto, Long turnoId) {
+        boolean solapa = turnoRepository.findByTrabajadorIdAndFechaOrderByHoraInicioAsc(trabajador.getId(), turnoDto.getFecha())
+                .stream()
+                .filter(otro -> !otro.getId().equals(turnoId))
+                .anyMatch(otro -> otro.getHoraInicio().isBefore(turnoDto.getHoraFin())
+                        && turnoDto.getHoraInicio().isBefore(otro.getHoraFin()));
+        if (solapa) {
+            throw new ReglaDeNegocioException("El turno se solapa con otro turno de la trabajadora ese día.");
+        }
     }
 
     private static void validarHoras(LocalTime inicio, LocalTime fin) {

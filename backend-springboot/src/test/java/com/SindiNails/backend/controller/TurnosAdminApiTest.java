@@ -131,6 +131,57 @@ class TurnosAdminApiTest {
         assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
     }
 
+    // ---------------------------------------------------------------- turnos solapados
+
+    @Test
+    void crear_un_turno_que_se_solapa_con_otro_de_la_trabajadora_responde_409_y_no_lo_guarda() throws Exception {
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+
+        for (String[] horas : List.of(new String[]{"12:00", "16:00"}, new String[]{"08:00", "11:00"},
+                new String[]{"11:00", "12:00"}, new String[]{"09:00", "15:00"}, new String[]{"10:00", "14:00"})) {
+            var r = crear(sindi, LUNES, horas[0], horas[1]);
+
+            assertThat(r.getStatusCode()).as(horas[0] + "-" + horas[1]).isEqualTo(HttpStatus.CONFLICT);
+            assertThat(mensaje(r)).isEqualTo("El turno se solapa con otro turno de la trabajadora ese día.");
+        }
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
+    @Test
+    void los_turnos_contiguos_otro_dia_o_de_otra_trabajadora_no_se_solapan() throws Exception {
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+        Trabajador ana = datos.trabajadora("Ana");
+
+        assertThat(crear(sindi, LUNES, "14:00", "18:00").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(crear(sindi, LUNES, "08:00", "10:00").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(crear(sindi, LUNES.plusDays(1), "10:00", "14:00").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(crear(ana, LUNES, "10:00", "14:00").getStatusCode()).isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
+    void editar_un_turno_sin_moverlo_o_alargandolo_sobre_si_mismo_se_permite() throws Exception {
+        Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
+
+        assertThat(editar(id, sindi, LUNES, "10:00", "14:00").getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(editar(id, sindi, LUNES, "09:00", "15:00").getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    @Test
+    void editar_un_turno_para_que_se_solape_con_otro_responde_409_y_no_lo_cambia() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+        Trabajador ana = datos.trabajadora("Ana");
+        datos.turno(ana, LUNES, "10:00", "14:00");
+        Long id = idDe(crear(sindi, LUNES, "10:00", "14:00"));
+
+        var mismaTrabajadora = editar(id, sindi, LUNES, "12:00", "17:00");
+        var otraTrabajadora = editar(id, ana, LUNES, "12:00", "15:00");
+
+        assertThat(mismaTrabajadora.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(otraTrabajadora.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(mensaje(otraTrabajadora)).isEqualTo("El turno se solapa con otro turno de la trabajadora ese día.");
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00", "2030-01-07 16:00-20:00");
+    }
+
     // ---------------------------------------------------------------- crear la semana en lote
 
     @Test
