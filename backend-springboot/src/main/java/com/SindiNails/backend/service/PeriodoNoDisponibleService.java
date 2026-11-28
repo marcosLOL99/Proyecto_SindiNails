@@ -42,13 +42,13 @@ public class PeriodoNoDisponibleService {
     }
 
     public List<BloqueoDto> getBloqueosPorTrabajador(Long trabajadorId) {
-        return periodoNoDisponibleRepository.findByTrabajadorId(trabajadorId).stream()
+        return periodoNoDisponibleRepository.findByTrabajadorIdOrderByFechaHoraInicioAsc(trabajadorId).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }
 
     public List<BloqueoDto> getBloqueosGlobales() {
-        return periodoNoDisponibleRepository.findByTipo(TipoBloqueo.GLOBAL).stream()
+        return periodoNoDisponibleRepository.findByTipoOrderByFechaHoraInicioAsc(TipoBloqueo.GLOBAL).stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
     }

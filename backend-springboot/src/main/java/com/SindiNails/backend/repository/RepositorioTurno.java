@@ -9,4 +9,6 @@ import com.SindiNails.backend.model.Turno;
 
 public interface RepositorioTurno extends JpaRepository<Turno, Long> {
     List<Turno> findByTrabajadorIdAndFechaOrderByHoraInicioAsc(Long trabajadorId, LocalDate fecha);
+
+    List<Turno> findByTrabajadorIdOrderByFechaAscHoraInicioAsc(Long trabajadorId);
 }

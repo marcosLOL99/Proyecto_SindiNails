@@ -1,0 +1,123 @@
+package com.SindiNails.backend.controller;
+
+import com.SindiNails.backend.TestcontainersConfiguration;
+import com.SindiNails.backend.model.*;
+import com.SindiNails.backend.repository.RepositorioCita;
+import com.SindiNails.backend.repository.RepositorioUsuario;
+import com.SindiNails.backend.service.JwtService;
+import com.SindiNails.backend.support.DatosDePrueba;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.*;
+import org.springframework.test.context.ActiveProfiles;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.StreamSupport;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Turnos de las trabajadoras desde la administración (/api/admin/turnos y /api/admin/trabajadores/{id}/turnos).
+ *
+ * Servidor real (RANDOM_PORT), como el resto de tests HTTP. No son @Transactional: cada test crea su propia
+ * trabajadora. Fechas fijas en 2030 (el lunes 2030-01-07 empieza la semana de los tests en lote).
+ */
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test")
+@Import({TestcontainersConfiguration.class, DatosDePrueba.class})
+class TurnosAdminApiTest {
+
+    private static final LocalDate LUNES = LocalDate.of(2030, 1, 7);
+
+    @Autowired TestRestTemplate http;
+    @Autowired DatosDePrueba datos;
+    @Autowired RepositorioUsuario usuarios;
+    @Autowired RepositorioCita citas;
+    @Autowired JwtService jwtService;
+    @Autowired ObjectMapper json;
+
+    private Usuario admin;
+    private Trabajador sindi;
+
+    @BeforeEach
+    void unaAdministradoraYUnaTrabajadora() {
+        admin = usuarios.save(Usuario.builder().nombre("Admin").apellidos("Salón")
+                .email("admin-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+                .telefono("600000000").password("x").role(Role.ADMIN).build());
+        sindi = datos.trabajadora("Sindi");
+    }
+
+    // ---------------------------------------------------------------- listado
+
+    @Test
+    void el_listado_de_turnos_de_una_trabajadora_sale_ordenado_por_fecha_y_hora() throws Exception {
+        Trabajador ana = datos.trabajadora("Ana");
+        datos.turno(sindi, LUNES.plusDays(1), "16:00", "20:00");
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+        datos.turno(ana, LUNES, "09:00", "13:00");
+        datos.turno(sindi, LUNES, "10:00", "14:00");
+
+        assertThat(turnosDe(sindi)).containsExactly(
+                "2030-01-07 10:00-14:00", "2030-01-07 16:00-20:00", "2030-01-08 16:00-20:00");
+    }
+
+    // ---------------------------------------------------------------- crear la semana en lote
+
+    @Test
+    void rehacer_la_semana_sustituye_solo_los_turnos_de_esa_semana() throws Exception {
+        datos.turno(sindi, LUNES.minusDays(1), "16:00", "20:00");
+        datos.turno(sindi, LUNES.plusDays(2), "16:00", "20:00");
+        datos.turno(sindi, LUNES.plusDays(7), "16:00", "20:00");
+
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"},
+                "1":{"activo":true,"horaInicio":"09:00","horaFin":"18:00","horaInicioDescanso":"13:00","horaFinDescanso":"14:00"},
+                "2":{"activo":false}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(turnosDe(sindi)).containsExactly(
+                "2030-01-06 16:00-20:00",
+                "2030-01-07 10:00-14:00",
+                "2030-01-08 09:00-13:00", "2030-01-08 14:00-18:00",
+                "2030-01-14 16:00-20:00");
+    }
+
+    // ---------------------------------------------------------------- utilidades
+
+    private ResponseEntity<String> lote(Trabajador t, String horarios) {
+        return admin(HttpMethod.POST, "/api/admin/turnos/batch", """
+                {"trabajadorId":%d,"fechaInicioSemana":"%s","horarios":{%s}}
+                """.formatted(t.getId(), LUNES, horarios));
+    }
+
+    /** Los turnos del listado de la trabajadora, como "fecha inicio-fin", en el orden en que llegan. */
+    private List<String> turnosDe(Trabajador t) throws Exception {
+        var r = admin(HttpMethod.GET, "/api/admin/trabajadores/" + t.getId() + "/turnos", null);
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode lista = json.readTree(r.getBody());
+        return StreamSupport.stream(lista.spliterator(), false)
+                .map(n -> n.path("fecha").asText() + " " + n.path("horaInicio").asText().substring(0, 5)
+                        + "-" + n.path("horaFin").asText().substring(0, 5))
+                .toList();
+    }
+
+    private String mensaje(ResponseEntity<String> r) throws Exception {
+        return json.readTree(r.getBody()).path("message").asText(null);
+    }
+
+    private ResponseEntity<String> admin(HttpMethod metodo, String url, String cuerpo) {
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_JSON);
+        h.setBearerAuth(jwtService.generateToken(admin));
+        return http.exchange(url, metodo, new HttpEntity<>(cuerpo, h), String.class);
+    }
+}

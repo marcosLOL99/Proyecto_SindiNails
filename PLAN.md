@@ -59,7 +59,7 @@ Cada bug sigue el ciclo: caracterizar (test que fija lo que pasa hoy) → contá
 - [x] 3.3 Caracterizar los turnos (`TurnoService` y `/api/admin/turnos`: crear, crear en lote, editar, borrar, listar por trabajadora; turnos que se solapan o con fin antes del inicio).
 - [x] 3.4 Caracterizar las ausencias y los bloqueos (`PeriodoNoDisponibleService` y `/api/admin/bloqueos`: crear, listar por trabajadora, listar globales, borrar; periodos con fin antes del inicio).
 - [ ] 3.5 Corregir lo encontrado en 3.3 (T1–T7) y 3.4 (B1–B5), decidido con el usuario (un paso `tdd` cada uno):
-  - [ ] Listados de turnos y de ausencias o bloqueos ordenados por fecha y hora (T7, B4).
+  - [x] Listados de turnos y de ausencias o bloqueos ordenados por fecha y hora (T7, B4).
   - [ ] Ausencias de una trabajadora que no existe → 404, como sus turnos (B5).
   - [ ] Un turno o un periodo no disponible debe acabar después de empezar, y el descanso del lote debe caer dentro del horario → 400 (T1, B1).
   - [ ] Dos turnos de la misma trabajadora el mismo día no pueden solaparse → 409 (T2).

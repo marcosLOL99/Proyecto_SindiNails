@@ -6,7 +6,6 @@ import com.SindiNails.backend.repository.RepositorioCita;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.service.JwtService;
 import com.SindiNails.backend.support.DatosDePrueba;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
@@ -20,8 +19,6 @@ import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -163,33 +160,10 @@ class BloqueosAdminCharacterisationTest {
     class Listar {
 
         @Test
-        void characterises_ausencias_de_una_trabajadora() {
-            Trabajador ana = datos.trabajadora("Ana");
-            ausencia(sindi, DIA.plusDays(1).withHour(10), DIA.plusDays(1).withHour(12));
-            ausencia(ana, DIA.withHour(10), DIA.withHour(12));
-            ausencia(sindi, DIA.withHour(10), DIA.withHour(12));
-            global(DIA.withHour(16), DIA.withHour(18));
-            // SUSPICIOUS (B4): el listado sale en orden de creación, no por fecha.
-            assertThat(resumen(admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/" + sindi.getId(), null)))
-                    .isEqualTo("200 [{\"id\":N,\"fechaHoraInicio\":\"2030-01-08T10:00:00\",\"fechaHoraFin\":\"2030-01-08T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"TRABAJADOR\",\"trabajadorId\":N},{\"id\":N,\"fechaHoraInicio\":\"2030-01-07T10:00:00\",\"fechaHoraFin\":\"2030-01-07T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"TRABAJADOR\",\"trabajadorId\":N}]");
-        }
-
-        @Test
         void characterises_ausencias_de_una_trabajadora_que_no_existe() {
             // SUSPICIOUS (B5): da 200 [] en vez de 404, al contrario que los turnos de una trabajadora que no existe.
             assertThat(resumen(admin(HttpMethod.GET, "/api/admin/bloqueos/trabajador/99999999", null)))
                     .isEqualTo("200 []");
-        }
-
-        @Test
-        void characterises_bloqueos_globales() throws Exception {
-            global(DIA.plusDays(1).withHour(10), DIA.plusDays(1).withHour(12));
-            global(DIA.withHour(10), DIA.withHour(12));
-            ausencia(sindi, DIA.withHour(16), DIA.withHour(18));
-            var r = admin(HttpMethod.GET, "/api/admin/bloqueos/globales", null);
-            assertThat(r.getStatusCode().value()).isEqualTo(200);
-            // SUSPICIOUS (B4): el listado sale en orden de creación, no por fecha.
-            assertThat(conMiMotivo(r)).isEqualTo("[{\"id\":N,\"fechaHoraInicio\":\"2030-01-08T10:00:00\",\"fechaHoraFin\":\"2030-01-08T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"GLOBAL\",\"trabajadorId\":null},{\"id\":N,\"fechaHoraInicio\":\"2030-01-07T10:00:00\",\"fechaHoraFin\":\"2030-01-07T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"GLOBAL\",\"trabajadorId\":null}]");
         }
     }
 
@@ -233,15 +207,6 @@ class BloqueosAdminCharacterisationTest {
         return admin(HttpMethod.POST, "/api/admin/bloqueos", """
                 {"fechaHoraInicio":"%s","fechaHoraFin":"%s","motivo":"%s","tipo":"GLOBAL"}
                 """.formatted(inicio, fin, motivo));
-    }
-
-    /** Los bloqueos del listado con el motivo de este test (el listado de globales es compartido). */
-    private String conMiMotivo(ResponseEntity<String> r) throws Exception {
-        JsonNode lista = json.readTree(r.getBody());
-        return StreamSupport.stream(lista.spliterator(), false)
-                .filter(n -> motivo.equals(n.path("motivo").asText()))
-                .map(n -> enmascarar(n.toString()))
-                .collect(Collectors.joining(",", "[", "]"));
     }
 
     private Long idDe(ResponseEntity<String> r) throws Exception {

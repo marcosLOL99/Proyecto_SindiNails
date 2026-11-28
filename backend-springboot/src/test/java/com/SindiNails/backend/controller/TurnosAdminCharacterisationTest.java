@@ -68,16 +68,6 @@ class TurnosAdminCharacterisationTest {
     class Listar {
 
         @Test
-        void characterises_turnos_de_una_trabajadora() {
-            Trabajador ana = datos.trabajadora("Ana");
-            datos.turno(sindi, LUNES.plusDays(1), "16:00", "20:00");
-            datos.turno(ana, LUNES, "10:00", "14:00");
-            datos.turno(sindi, LUNES, "10:00", "14:00");
-            // SUSPICIOUS (T7): el listado sale en orden de creación, no por fecha y hora (y carga todos los turnos de todas para filtrar).
-            assertThat(listar(sindi)).isEqualTo("200 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-08\",\"horaInicio\":\"16:00:00\",\"horaFin\":\"20:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}]");
-        }
-
-        @Test
         void characterises_trabajadora_sin_turnos() {
             assertThat(listar(sindi)).isEqualTo("200 []");
         }
@@ -227,17 +217,6 @@ class TurnosAdminCharacterisationTest {
                     "2":{"activo":false,"horaInicio":"09:00","horaFin":"18:00"}
                     """);
             assertThat(resumen(r)).isEqualTo("201 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-08\",\"horaInicio\":\"09:00:00\",\"horaFin\":\"13:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-08\",\"horaInicio\":\"14:00:00\",\"horaFin\":\"18:00:00\"}]");
-        }
-
-        @Test
-        void characterises_lote_sustituye_los_turnos_de_esa_semana_y_no_los_de_otras() {
-            datos.turno(sindi, LUNES.plusDays(2), "16:00", "20:00");
-            datos.turno(sindi, LUNES.plusDays(7), "16:00", "20:00");
-            datos.turno(sindi, LUNES.minusDays(1), "16:00", "20:00");
-            lote(sindi, """
-                    "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
-                    """);
-            assertThat(listar(sindi)).isEqualTo("200 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-14\",\"horaInicio\":\"16:00:00\",\"horaFin\":\"20:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-06\",\"horaInicio\":\"16:00:00\",\"horaFin\":\"20:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-07\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}]");
         }
 
         @Test

@@ -28,9 +28,9 @@ public class TurnoService {
         if (!trabajadorRepository.existsById(trabajadorId)) {
             throw new ResourceNotFoundException("No se encontró el trabajador con ID: " + trabajadorId);
         }
-        List<Turno> turnos = turnoRepository.findAll().stream()
-                .filter(t -> t.getTrabajador().getId().equals(trabajadorId)).collect(Collectors.toList());
-        return turnos.stream().map(this::mapToDto).collect(Collectors.toList());
+        return turnoRepository.findByTrabajadorIdOrderByFechaAscHoraInicioAsc(trabajadorId).stream()
+                .map(this::mapToDto)
+                .collect(Collectors.toList());
     }
 
     public TurnoDto createTurno(CreateUpdateTurnoDto turnoDto) {
