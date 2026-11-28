@@ -193,41 +193,6 @@ class TurnosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_lote_con_un_dia_fuera_de_la_semana() {
-            var r = lote(sindi, """
-                    "7":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"},
-                    "-1":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
-                    """);
-            // SUSPICIOUS (T4): los días 7 y -1 crean turnos fuera de la semana (y esos no se sustituyen al repetir el lote).
-            assertThat(resumen(r)).isEqualTo("201 [{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-14\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"},{\"id\":N,\"trabajadorId\":N,\"trabajadorNombre\":\"Sindi\",\"fecha\":\"2030-01-06\",\"horaInicio\":\"10:00:00\",\"horaFin\":\"14:00:00\"}]");
-        }
-
-        @Test
-        void characterises_lote_con_un_dia_activo_sin_horas() {
-            var r = lote(sindi, """
-                    "0":{"activo":true}
-                    """);
-            // SUSPICIOUS (T6): un día marcado como activo sin horas se ignora en silencio.
-            assertThat(resumen(r)).isEqualTo("201 []");
-        }
-
-        @Test
-        void characterises_lote_sin_horarios() {
-            var r = admin(HttpMethod.POST, "/api/admin/turnos/batch", """
-                    {"trabajadorId":%d,"fechaInicioSemana":"2030-01-07"}
-                    """.formatted(sindi.getId()));
-            // SUSPICIOUS (T5): sin horarios da 500 (NullPointerException) en vez de 400.
-            assertThat(resumen(r)).isEqualTo("500 {\"timestamp\":T,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/admin/turnos/batch\"}");
-            assertThat(listar(sindi)).isEqualTo("200 []");
-        }
-
-        @Test
-        void characterises_lote_sin_datos() {
-            // SUSPICIOUS (T6): los mensajes son los genéricos de Spring ("no debe ser nulo"), sin decir qué campo falta.
-            assertThat(resumen(admin(HttpMethod.POST, "/api/admin/turnos/batch", "{}"))).isEqualTo("400 {\"message\":\"no debe ser nulo no debe ser nulo\"}");
-        }
-
-        @Test
         void characterises_lote_que_quita_el_turno_de_una_cita() {
             datos.turno(sindi, LUNES, "10:00", "14:00");
             Cita cita = citaConfirmada(LUNES.atTime(12, 0));

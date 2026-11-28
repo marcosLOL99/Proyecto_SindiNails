@@ -2,6 +2,7 @@ package com.SindiNails.backend.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -36,6 +37,12 @@ public class ManejadorDeErrores {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(" "));
         return conMensaje(HttpStatus.BAD_REQUEST, mensaje);
+    }
+
+    /** Cuerpo que no se puede leer: JSON mal formado, una fecha mal escrita o un valor que no existe (por ejemplo, un tipo). */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> cuerpoIlegible(HttpMessageNotReadableException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "La petición no tiene un formato válido.");
     }
 
     private static ResponseEntity<Map<String, String>> conMensaje(HttpStatus estado, RuntimeException e) {

@@ -9,12 +9,14 @@ import java.util.Map;
 
 @Data
 public class CreateTurnoBatchDto {
-    @NotNull
+    @NotNull(message = "El ID del trabajador es obligatorio.")
     private Long trabajadorId;
 
-    @NotNull
+    @NotNull(message = "La fecha de inicio de la semana es obligatoria.")
     private LocalDate fechaInicioSemana;
 
+    /** Clave: día de la semana, de 0 (lunes) a 6 (domingo). */
+    @NotNull(message = "Los horarios son obligatorios.")
     private Map<Integer, HorarioDia> horarios;
 
     @Data

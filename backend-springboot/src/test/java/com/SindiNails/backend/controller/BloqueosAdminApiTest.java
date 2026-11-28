@@ -117,6 +117,30 @@ class BloqueosAdminApiTest {
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
+    // ---------------------------------------------------------------- mensajes
+
+    @Test
+    void crear_sin_datos_responde_400_diciendo_que_falta() throws Exception {
+        var r = admin(HttpMethod.POST, "/api/admin/bloqueos", "{}");
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La fecha y hora de fin son obligatorias. La fecha y hora de inicio son "
+                + "obligatorias. El motivo no puede estar vacío. El tipo es obligatorio.");
+    }
+
+    @Test
+    void un_tipo_desconocido_o_una_fecha_mal_escrita_responde_400_con_mensaje() throws Exception {
+        for (String cuerpo : List.of(
+                "{\"fechaHoraInicio\":\"2030-01-07T10:00:00\",\"fechaHoraFin\":\"2030-01-07T12:00:00\",\"motivo\":\"x\",\"tipo\":\"VACACIONES\"}",
+                "{\"fechaHoraInicio\":\"mañana\",\"fechaHoraFin\":\"2030-01-07T12:00:00\",\"motivo\":\"x\",\"tipo\":\"GLOBAL\"}",
+                "{esto no es json")) {
+            var r = admin(HttpMethod.POST, "/api/admin/bloqueos", cuerpo);
+
+            assertThat(r.getStatusCode()).as(cuerpo).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("La petición no tiene un formato válido.");
+        }
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     /** Inicio de cada periodo del listado con el motivo de este test, en el orden en que llegan. */

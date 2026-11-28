@@ -74,7 +74,7 @@ public class TurnoService {
 
     @Transactional
     public List<TurnoDto> createTurnoBatch(CreateTurnoBatchDto batchDto) {
-        batchDto.getHorarios().values().forEach(TurnoService::validarDia);
+        batchDto.getHorarios().forEach(TurnoService::validarDia);
         Trabajador trabajador = trabajadorRepository.findById(batchDto.getTrabajadorId())
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontró el trabajador con ID: " + batchDto.getTrabajadorId()));
 
@@ -88,7 +88,7 @@ public class TurnoService {
 
         List<Turno> nuevosTurnos = new ArrayList<>();
         batchDto.getHorarios().forEach((diaIndex, horario) -> {
-            if (horario.isActivo() && horario.getHoraInicio() != null && horario.getHoraFin() != null) {
+            if (horario.isActivo()) {
                 LocalDate fechaTurno = batchDto.getFechaInicioSemana().plusDays(diaIndex);
                 boolean hasValidBreak = horario.getHoraInicioDescanso() != null && horario.getHoraFinDescanso() != null;
 
@@ -132,10 +132,16 @@ public class TurnoService {
         }
     }
 
-    /** Un día activo de la semana: su horario, y el descanso (si lo tiene) estrictamente dentro de él. */
-    private static void validarDia(CreateTurnoBatchDto.HorarioDia dia) {
-        if (!dia.isActivo() || dia.getHoraInicio() == null || dia.getHoraFin() == null) {
+    /** Un día de la semana (0 = lunes … 6 = domingo); si está activo, su horario y el descanso (si lo tiene) dentro de él. */
+    private static void validarDia(Integer diaDeLaSemana, CreateTurnoBatchDto.HorarioDia dia) {
+        if (diaDeLaSemana < 0 || diaDeLaSemana > 6) {
+            throw new PeticionNoValidaException("Los días de la semana van del 0 (lunes) al 6 (domingo).");
+        }
+        if (!dia.isActivo()) {
             return;
+        }
+        if (dia.getHoraInicio() == null || dia.getHoraFin() == null) {
+            throw new PeticionNoValidaException("Un día activo necesita hora de inicio y de fin.");
         }
         validarHoras(dia.getHoraInicio(), dia.getHoraFin());
         if (dia.getHoraInicioDescanso() != null && dia.getHoraFinDescanso() != null) {

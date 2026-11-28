@@ -87,22 +87,6 @@ class BloqueosAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_crear_sin_datos() {
-            // SUSPICIOUS (B3): el tipo obligatorio da el mensaje genérico de Spring ("no debe ser nulo").
-            assertThat(resumen(admin(HttpMethod.POST, "/api/admin/bloqueos", "{}"))).isEqualTo("400 {\"message\":\"La fecha y hora de fin son obligatorias. La fecha y hora de inicio son obligatorias. El motivo no puede estar vacío. no debe ser nulo\"}");
-        }
-
-        @Test
-        void characterises_crear_con_un_tipo_que_no_existe() {
-            var r = admin(HttpMethod.POST, "/api/admin/bloqueos", """
-                    {"fechaHoraInicio":"2030-01-07T10:00:00","fechaHoraFin":"2030-01-07T12:00:00",
-                     "motivo":"%s","tipo":"VACACIONES"}
-                    """.formatted(motivo));
-            // SUSPICIOUS (B3): un tipo desconocido da 400 sin mensaje.
-            assertThat(resumen(r)).isEqualTo("400 {\"timestamp\":T,\"status\":400,\"error\":\"Bad Request\",\"path\":\"/api/admin/bloqueos\"}");
-        }
-
-        @Test
         void characterises_crear_en_el_pasado() {
             assertThat(resumen(ausencia(sindi, LocalDateTime.of(2020, 1, 6, 10, 0), LocalDateTime.of(2020, 1, 6, 12, 0))))
                     .isEqualTo("201 {\"id\":N,\"fechaHoraInicio\":\"2020-01-06T10:00:00\",\"fechaHoraFin\":\"2020-01-06T12:00:00\",\"motivo\":\"MOTIVO\",\"tipo\":\"TRABAJADOR\",\"trabajadorId\":N}");

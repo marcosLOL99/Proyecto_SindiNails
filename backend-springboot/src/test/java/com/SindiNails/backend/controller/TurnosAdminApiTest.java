@@ -204,6 +204,79 @@ class TurnosAdminApiTest {
                 "2030-01-14 16:00-20:00");
     }
 
+    @Test
+    void un_lote_sin_datos_responde_400_diciendo_que_falta() throws Exception {
+        var r = admin(HttpMethod.POST, "/api/admin/turnos/batch", "{}");
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("La fecha de inicio de la semana es obligatoria. "
+                + "Los horarios son obligatorios. El ID del trabajador es obligatorio.");
+    }
+
+    @Test
+    void un_lote_sin_horarios_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+
+        var r = admin(HttpMethod.POST, "/api/admin/turnos/batch", """
+                {"trabajadorId":%d,"fechaInicioSemana":"%s"}
+                """.formatted(sindi.getId(), LUNES));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("Los horarios son obligatorios.");
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
+    @Test
+    void un_lote_con_un_dia_fuera_de_la_semana_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+        for (String dia : List.of("7", "-1")) {
+            var r = lote(sindi, """
+                    "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"},
+                    "%s":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
+                    """.formatted(dia));
+
+            assertThat(r.getStatusCode()).as(dia).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("Los días de la semana van del 0 (lunes) al 6 (domingo).");
+        }
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
+    @Test
+    void un_lote_con_el_domingo_crea_su_turno() throws Exception {
+        var r = lote(sindi, """
+                "6":{"activo":true,"horaInicio":"10:00","horaFin":"14:00"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-13 10:00-14:00");
+    }
+
+    @Test
+    void un_lote_con_un_dia_activo_sin_horas_responde_400_y_no_toca_la_semana() throws Exception {
+        datos.turno(sindi, LUNES, "16:00", "20:00");
+        for (String horas : List.of("", "\"horaInicio\":\"10:00\"", "\"horaFin\":\"14:00\"")) {
+            var r = lote(sindi, """
+                    "0":{"activo":true%s}
+                    """.formatted(horas.isEmpty() ? "" : "," + horas));
+
+            assertThat(r.getStatusCode()).as(horas).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(mensaje(r)).isEqualTo("Un día activo necesita hora de inicio y de fin.");
+        }
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 16:00-20:00");
+    }
+
+    @Test
+    void un_dia_inactivo_no_necesita_horas() throws Exception {
+        // Así lo envía el panel: los días sin marcar llevan las horas vacías.
+        var r = lote(sindi, """
+                "0":{"activo":true,"horaInicio":"10:00","horaFin":"14:00","horaInicioDescanso":null,"horaFinDescanso":null},
+                "1":{"activo":false,"horaInicio":"","horaFin":"","horaInicioDescanso":null,"horaFinDescanso":null}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(turnosDe(sindi)).containsExactly("2030-01-07 10:00-14:00");
+    }
+
     // ---------------------------------------------------------------- utilidades
 
     private ResponseEntity<String> crear(Trabajador t, LocalDate fecha, String inicio, String fin) {
