@@ -70,7 +70,7 @@ class TurnosAdminCharacterisationTest {
         @Test
         void characterises_trabajadora_que_no_existe() {
             assertThat(resumen(admin(HttpMethod.GET, "/api/admin/trabajadores/99999999/turnos", null)))
-                    .isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/trabajadores/N/turnos\"}");
+                    .isEqualTo("404 {\"message\":\"No se encontró el trabajador con ID: 99999999\"}");
         }
     }
 
@@ -105,7 +105,7 @@ class TurnosAdminCharacterisationTest {
             var r = admin(HttpMethod.POST, "/api/admin/turnos", """
                     {"trabajadorId":99999999,"fecha":"2030-01-07","horaInicio":"10:00","horaFin":"14:00"}
                     """);
-            assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/turnos\"}");
+            assertThat(resumen(r)).isEqualTo("404 {\"message\":\"No se encontró el trabajador con ID: 99999999\"}");
         }
     }
 
@@ -132,7 +132,7 @@ class TurnosAdminCharacterisationTest {
 
         @Test
         void characterises_editar_un_turno_que_no_existe() {
-            assertThat(resumen(editar(99999999L, sindi, LUNES, "10:00", "14:00"))).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/turnos/N\"}");
+            assertThat(resumen(editar(99999999L, sindi, LUNES, "10:00", "14:00"))).isEqualTo("404 {\"message\":\"No se encontró el turno con ID: 99999999\"}");
         }
     }
 
@@ -150,7 +150,7 @@ class TurnosAdminCharacterisationTest {
 
         @Test
         void characterises_borrar_un_turno_que_no_existe() {
-            assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/turnos/99999999", null))).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/turnos/N\"}");
+            assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/turnos/99999999", null))).isEqualTo("404 {\"message\":\"No se encontró el turno con ID: 99999999\"}");
         }
     }
 
@@ -174,7 +174,7 @@ class TurnosAdminCharacterisationTest {
             var r = admin(HttpMethod.POST, "/api/admin/turnos/batch", """
                     {"trabajadorId":99999999,"fechaInicioSemana":"2030-01-07","horarios":{}}
                     """);
-            assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/turnos/batch\"}");
+            assertThat(resumen(r)).isEqualTo("404 {\"message\":\"No se encontró el trabajador con ID: 99999999\"}");
         }
     }
 

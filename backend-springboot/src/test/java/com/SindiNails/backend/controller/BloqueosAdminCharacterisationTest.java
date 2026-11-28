@@ -98,7 +98,7 @@ class BloqueosAdminCharacterisationTest {
                     {"fechaHoraInicio":"2030-01-07T10:00:00","fechaHoraFin":"2030-01-07T12:00:00",
                      "motivo":"%s","tipo":"TRABAJADOR","trabajadorId":99999999}
                     """.formatted(motivo));
-            assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/bloqueos\"}");
+            assertThat(resumen(r)).isEqualTo("404 {\"message\":\"Trabajador no encontrado con id: 99999999\"}");
         }
 
         @Test
@@ -129,7 +129,7 @@ class BloqueosAdminCharacterisationTest {
 
         @Test
         void characterises_borrar_un_bloqueo_que_no_existe() {
-            assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/bloqueos/99999999", null))).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/bloqueos/N\"}");
+            assertThat(resumen(admin(HttpMethod.DELETE, "/api/admin/bloqueos/99999999", null))).isEqualTo("404 {\"message\":\"Periodo de bloqueo no encontrado con id: 99999999\"}");
         }
     }
 

@@ -5,8 +5,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -22,6 +24,21 @@ public class ManejadorDeErrores {
     @ExceptionHandler(ReglaDeNegocioException.class)
     public ResponseEntity<Map<String, String>> reglaDeNegocio(ReglaDeNegocioException e) {
         return conMensaje(HttpStatus.CONFLICT, e);
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> noEncontrado(ResourceNotFoundException e) {
+        return conMensaje(HttpStatus.NOT_FOUND, e);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<Map<String, String>> faltaParametro(MissingServletRequestParameterException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "Falta el parámetro " + e.getParameterName() + ".");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> parametroMalEscrito(MethodArgumentTypeMismatchException e) {
+        return conMensaje(HttpStatus.BAD_REQUEST, "El parámetro " + e.getName() + " no tiene un formato válido.");
     }
 
     @ExceptionHandler(PeticionNoValidaException.class)

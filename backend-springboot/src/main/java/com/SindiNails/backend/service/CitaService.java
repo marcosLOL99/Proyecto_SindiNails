@@ -3,6 +3,7 @@ package com.SindiNails.backend.service;
 
 import com.SindiNails.backend.dto.*;
 import com.SindiNails.backend.exception.ReglaDeNegocioException;
+import com.SindiNails.backend.exception.PeticionNoValidaException;
 import com.SindiNails.backend.exception.ResourceNotFoundException;
 import com.SindiNails.backend.model.*;
 import com.SindiNails.backend.repository.RepositorioCita;
@@ -277,6 +278,9 @@ public class CitaService {
     }
 
     public List<LocalDate> getDiasNoDisponibles(Long trabajadorId, Long servicioId, int anio, int mes) {
+        if (mes < 1 || mes > 12) {
+            throw new PeticionNoValidaException("El mes debe estar entre 1 y 12.");
+        }
         LocalDate primerDiaDelMes = LocalDate.of(anio, mes, 1);
         LocalDate fechaInicioRango = primerDiaDelMes.with(DayOfWeek.MONDAY);
 

@@ -92,8 +92,7 @@ class ClientasAdminCharacterisationTest {
             var r = peticion(HttpMethod.PUT, "/api/admin/clientes/99999999", """
                     {"nombre":"Ana","apellidos":"Pérez","email":"x@test.com","telefono":"600000000","role":"USER"}
                     """);
-            // Ya conocido (paso 3.8 del plan): los 404 llegan sin {"message": ...}.
-            assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/clientes/N\"}");
+            assertThat(resumen(r)).isEqualTo("404 {\"message\":\"Clienta no encontrada con id: 99999999\"}");
         }
 
         @Test
@@ -116,7 +115,7 @@ class ClientasAdminCharacterisationTest {
         @Test
         void characterises_borrar_una_clienta_que_no_existe() throws Exception {
             var r = peticion(HttpMethod.DELETE, "/api/admin/clientes/99999999", null);
-            assertThat(resumen(r)).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/admin/clientes/N\"}");
+            assertThat(resumen(r)).isEqualTo("404 {\"message\":\"Clienta no encontrada con id: 99999999\"}");
         }
     }
 

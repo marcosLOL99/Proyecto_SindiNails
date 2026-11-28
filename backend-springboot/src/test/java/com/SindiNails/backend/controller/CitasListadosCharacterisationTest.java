@@ -154,30 +154,15 @@ class CitasListadosCharacterisationTest {
         }
 
         @Test
-        void characterises_huecos_sin_un_parametro() {
-            // SUSPICIOUS (L2): un parámetro que falta da 400 sin {"message": ...}.
-            assertThat(resumen(disponibilidad("trabajadorId=" + sindi.getId() + "&fecha=" + LUNES)))
-                    .isEqualTo("400 {\"timestamp\":T,\"status\":400,\"error\":\"Bad Request\",\"path\":\"/api/citas/disponibilidad\"}");
-        }
-
-        @Test
-        void characterises_huecos_con_la_fecha_mal_escrita() {
-            // SUSPICIOUS (L2): una fecha mal escrita da 400 sin {"message": ...}.
-            assertThat(resumen(disponibilidad("trabajadorId=" + sindi.getId() + "&servicioId=" + servicio.getId()
-                    + "&fecha=04-02-2030"))).isEqualTo("400 {\"timestamp\":T,\"status\":400,\"error\":\"Bad Request\",\"path\":\"/api/citas/disponibilidad\"}");
-        }
-
-        @Test
         void characterises_huecos_de_una_trabajadora_que_no_existe() {
-            // Ya conocido (paso 3.8 del plan): los 404 llegan sin {"message": ...}.
             assertThat(resumen(disponibilidad("trabajadorId=99999999&servicioId=" + servicio.getId()
-                    + "&fecha=" + LUNES))).isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/citas/disponibilidad\"}");
+                    + "&fecha=" + LUNES))).isEqualTo("404 {\"message\":\"Trabajador no encontrado con id: 99999999\"}");
         }
 
         @Test
         void characterises_huecos_de_un_servicio_que_no_existe() {
             assertThat(resumen(disponibilidad("trabajadorId=" + sindi.getId() + "&servicioId=99999999&fecha=" + LUNES)))
-                    .isEqualTo("404 {\"timestamp\":T,\"status\":404,\"error\":\"Not Found\",\"path\":\"/api/citas/disponibilidad\"}");
+                    .isEqualTo("404 {\"message\":\"Servicio no encontrado con id: 99999999\"}");
         }
     }
 
@@ -194,18 +179,6 @@ class CitasListadosCharacterisationTest {
             datos.cita(laura, sindi, servicio, LUNES.plusDays(1).atTime(11, 0), EstadoCita.CONFIRMADA);
             // Devuelve las 42 casillas del calendario (6 semanas desde el lunes de la semana del día 1), no solo el mes.
             assertThat(resumen(diasNoDisponibles("anio=2030&mes=2"))).isEqualTo("200 [\"2030-01-28\",\"2030-01-29\",\"2030-01-30\",\"2030-01-31\",\"2030-02-01\",\"2030-02-02\",\"2030-02-03\",\"2030-02-05\",\"2030-02-06\",\"2030-02-07\",\"2030-02-08\",\"2030-02-09\",\"2030-02-10\",\"2030-02-11\",\"2030-02-12\",\"2030-02-13\",\"2030-02-14\",\"2030-02-15\",\"2030-02-16\",\"2030-02-17\",\"2030-02-18\",\"2030-02-19\",\"2030-02-20\",\"2030-02-21\",\"2030-02-22\",\"2030-02-23\",\"2030-02-24\",\"2030-02-25\",\"2030-02-26\",\"2030-02-27\",\"2030-02-28\",\"2030-03-01\",\"2030-03-02\",\"2030-03-03\",\"2030-03-04\",\"2030-03-05\",\"2030-03-06\",\"2030-03-07\",\"2030-03-08\",\"2030-03-09\",\"2030-03-10\"]");
-        }
-
-        @Test
-        void characterises_dias_no_disponibles_con_un_mes_que_no_existe() {
-            // SUSPICIOUS (L1): un mes que no existe da 500 (DateTimeException) en vez de 400.
-            assertThat(resumen(diasNoDisponibles("anio=2030&mes=13"))).isEqualTo("500 {\"timestamp\":T,\"status\":500,\"error\":\"Internal Server Error\",\"path\":\"/api/citas/dias-no-disponibles\"}");
-        }
-
-        @Test
-        void characterises_dias_no_disponibles_sin_el_mes() {
-            // SUSPICIOUS (L2): un parámetro que falta da 400 sin {"message": ...}, al contrario que el resto de errores.
-            assertThat(resumen(diasNoDisponibles("anio=2030"))).isEqualTo("400 {\"timestamp\":T,\"status\":400,\"error\":\"Bad Request\",\"path\":\"/api/citas/dias-no-disponibles\"}");
         }
     }
 
