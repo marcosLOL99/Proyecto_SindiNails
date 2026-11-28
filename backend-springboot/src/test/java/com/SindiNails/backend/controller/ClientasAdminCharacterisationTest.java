@@ -93,26 +93,6 @@ class ClientasAdminCharacterisationTest {
         }
 
         @Test
-        void characterises_editar_con_email_no_valido() throws Exception {
-            var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
-                    {"nombre":"Ana","apellidos":"Pérez","email":"no-es-un-email","telefono":"600000000","role":"USER"}
-                    """);
-            // SUSPICIOUS (C3): solo se valida el teléfono; el registro exige email válido y todos los campos.
-            assertThat(resumen(r)).isEqualTo("200 {\"id\":N,\"nombre\":\"Ana\",\"apellidos\":\"Pérez\",\"email\":\"no-es-un-email\",\"telefono\":\"600000000\",\"role\":\"USER\"}");
-            assertThat(guardada(ana)).isEqualTo("Ana|Pérez|no-es-un-email|600000000|USER");
-        }
-
-        @Test
-        void characterises_editar_con_nombre_y_email_vacios() throws Exception {
-            var r = peticion(HttpMethod.PUT, "/api/admin/clientes/" + ana.getId(), """
-                    {"nombre":"","apellidos":"","email":"","telefono":"600000000","role":"USER"}
-                    """);
-            // SUSPICIOUS (C3): deja a la clienta sin nombre ni email (y sin poder entrar).
-            assertThat(resumen(r)).isEqualTo("200 {\"id\":N,\"nombre\":\"\",\"apellidos\":\"\",\"email\":\"\",\"telefono\":\"600000000\",\"role\":\"USER\"}");
-            assertThat(guardada(ana)).isEqualTo("|||600000000|USER");
-        }
-
-        @Test
         void characterises_editar_una_clienta_que_no_existe() throws Exception {
             var r = peticion(HttpMethod.PUT, "/api/admin/clientes/99999999", """
                     {"nombre":"Ana","apellidos":"Pérez","email":"x@test.com","telefono":"600000000","role":"USER"}

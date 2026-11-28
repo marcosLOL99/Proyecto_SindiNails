@@ -5,6 +5,7 @@ import com.SindiNails.backend.model.Role;
 import com.SindiNails.backend.model.Usuario;
 import com.SindiNails.backend.repository.RepositorioUsuario;
 import com.SindiNails.backend.service.JwtService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,7 @@ class ClientasAdminApiTest {
     @Autowired RepositorioUsuario usuarios;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JwtService jwtService;
+    @Autowired ObjectMapper json;
 
     private Usuario admin;
     private Usuario ana;
@@ -110,7 +112,58 @@ class ClientasAdminApiTest {
         assertThat(usuarios.existsById(ana.getId())).isFalse();
     }
 
+    // ---------------------------------------------------------------- C3: mismas reglas que el registro
+
+    @Test
+    void editar_una_clienta_con_nombre_apellidos_y_email_vacios_responde_400_y_no_cambia_nada() throws Exception {
+        var r = editar(ana, """
+                {"nombre":" ","apellidos":"","email":"","telefono":"611111111"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("Los apellidos son obligatorios. El email es obligatorio. "
+                + "El nombre es obligatorio.");
+        assertThat(sinCambios(ana)).isTrue();
+    }
+
+    @Test
+    void editar_una_clienta_con_un_email_no_valido_responde_400_y_no_cambia_nada() throws Exception {
+        var r = editar(ana, """
+                {"nombre":"Ana","apellidos":"Pérez","email":"no-es-un-email","telefono":"611111111"}
+                """);
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(mensaje(r)).isEqualTo("El email no es válido.");
+        assertThat(sinCambios(ana)).isTrue();
+    }
+
+    @Test
+    void editar_una_clienta_con_datos_validos_guarda_los_cambios() {
+        String nuevoEmail = "anabel-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com";
+
+        var r = editar(ana, """
+                {"nombre":"Anabel","apellidos":"Ruiz","email":"%s","telefono":"611111111"}
+                """.formatted(nuevoEmail));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
+        Usuario guardada = usuarios.findById(ana.getId()).orElseThrow();
+        assertThat(guardada.getNombre()).isEqualTo("Anabel");
+        assertThat(guardada.getApellidos()).isEqualTo("Ruiz");
+        assertThat(guardada.getEmail()).isEqualTo(nuevoEmail);
+        assertThat(guardada.getTelefono()).isEqualTo("611111111");
+    }
+
     // ---------------------------------------------------------------- utilidades
+
+    private boolean sinCambios(Usuario u) {
+        Usuario g = usuarios.findById(u.getId()).orElseThrow();
+        return g.getNombre().equals(u.getNombre()) && g.getApellidos().equals(u.getApellidos())
+                && g.getEmail().equals(u.getEmail()) && g.getTelefono().equals(u.getTelefono());
+    }
+
+    private String mensaje(ResponseEntity<String> r) throws Exception {
+        return json.readTree(r.getBody()).path("message").asText(null);
+    }
 
     private Usuario usuario(String nombre, Role rol) {
         return usuarios.save(Usuario.builder().nombre(nombre).apellidos("Pérez")
